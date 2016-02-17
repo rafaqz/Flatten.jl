@@ -11,8 +11,9 @@ export to_tuple, to_vector, from_tuple, from_vector
 end
 
 @generated function to_vector(T)
+    element_type = reduce(promote_type, map(i -> fieldtype(T, i), 1:length(fieldnames(T))))
     expr = quote
-        v = Array{Float64}($(length(fieldnames(T))))
+        v = Array{$(element_type)}($(length(fieldnames(T))))
     end
     for (i, field) in enumerate(fieldnames(T))
         push!(expr.args, :(v[$(i)] = T.$(field)))
