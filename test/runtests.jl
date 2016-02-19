@@ -7,9 +7,17 @@ type Foo{T}
     c::T
 end
 
+type Nested{T}
+    f::Foo{T}
+    b::T
+    c::T
+end
+
 foo = Foo(1.0, 2.0, 3.0)
 @test to_vector(from_vector(Foo, to_vector(foo))) == to_vector(foo)
 @test to_tuple(from_tuple(Foo, to_tuple(foo))) == to_tuple(foo)
+@test to_tuple(Nested(Foo(1,2,3),4,5)) == (1,2,3,4,5)
+@test to_tuple((Nested(Foo(1,2,3),4,5), Nested(Foo(6,7,8), 9, 10))) == (1,2,3,4,5,6,7,8,9,10)
 
 function to_vector_naive(obj)
     v = Array(Float64, length(fieldnames(obj)))
