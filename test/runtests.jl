@@ -7,10 +7,10 @@ type Foo{T}
     c::T
 end
 
-type Nested{T}
-    f::Foo{T}
-    b::T
-    c::T
+type Nested{T1, T2}
+    f::Foo{T1}
+    b::T2
+    c::T2
 end
 
 foo = Foo(1.0, 2.0, 3.0)
@@ -18,6 +18,15 @@ foo = Foo(1.0, 2.0, 3.0)
 @test to_tuple(from_tuple(Foo, to_tuple(foo))) == to_tuple(foo)
 @test to_tuple(Nested(Foo(1,2,3),4,5)) == (1,2,3,4,5)
 @test to_tuple((Nested(Foo(1,2,3),4,5), Nested(Foo(6,7,8), 9, 10))) == (1,2,3,4,5,6,7,8,9,10)
+@test to_tuple(Nested(Foo(1,2,3), (4,5), (6,7))) == (1,2,3,4,5,6,7)
+@test to_vector(Foo(1,2,3)) == Int[1,2,3]
+@test typeof(to_vector(Foo(1,2,3))) == Array{Int, 1}
+@test to_vector((Nested(Foo(1,2,3),4.0,5.0), Nested(Foo(6,7,8), 9, 10))) == Float64[1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0,9.0,10.0]
+@test typeof(to_vector((Nested(Foo(1,2,3),4.0,5.0), Nested(Foo(6,7,8), 9, 10)))) == Array{Float64, 1}
+
+nested = Nested(Foo(1,2,3), 4.0, 5.0)
+@test to_tuple(from_tuple(Nested, to_tuple(nested))) == to_tuple(nested)
+@test to_vector(from_vector(Nested, to_vector(nested))) == to_vector(nested)
 
 function to_vector_naive(obj)
     v = Array(Float64, length(fieldnames(obj)))
