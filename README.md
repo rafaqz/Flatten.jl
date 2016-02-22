@@ -94,6 +94,9 @@ julia> from_tuple(Tuple{Nested, Nested}, (1,2,3,4,5,6,7,8,9,10))
 
 Flatten.jl uses Julia's [generated functions](http://docs.julialang.org/en/release-0.4/manual/metaprogramming/#generated-functions) to generate efficient code for your particular data types, which can be 10 to 100 times faster than naively packing and unpacking data. You can look at the generated expressions for a particular type:
 
+
+### Flattening...
+
 ```julia
 julia> Flatten.to_tuple_internal(typeof(Foo(1,2,3)))
 :((T.a,T.b,T.c))
@@ -107,6 +110,21 @@ quote  # /Users/rdeits/.julia/Flatten/src/Flatten.jl, line 64:
     v
 end
 
+julia> Flatten.to_vector_internal(typeof(Nested(Foo(1,2,3),4,5)))
+quote  # /Users/rdeits/.julia/Flatten/src/Flatten.jl, line 64:
+    v = Array{Int64}(5)
+    v[1] = T.f.a
+    v[2] = T.f.b
+    v[3] = T.f.c
+    v[4] = T.b
+    v[5] = T.c
+    v
+end
+```
+
+### ...and unflattening
+
+```julia
 julia> Flatten.from_tuple_internal(Nested, (1,2,3,4,5))
 :((Nested{T1,T2})((Foo{T1})(data[1],data[2],data[3]),data[4],data[5]))
 ```
