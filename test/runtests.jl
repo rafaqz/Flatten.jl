@@ -14,6 +14,8 @@ type Nested{T1, T2}
 end
 
 foo = Foo(1.0, 2.0, 3.0)
+nested = Nested(Foo(1,2,3), 4.0, 5.0)
+
 @test to_vector(from_vector(Foo, to_vector(foo))) == to_vector(foo)
 @test to_tuple(from_tuple(Foo, to_tuple(foo))) == to_tuple(foo)
 @test to_tuple(Nested(Foo(1,2,3),4,5)) == (1,2,3,4,5)
@@ -23,8 +25,8 @@ foo = Foo(1.0, 2.0, 3.0)
 @test typeof(to_vector(Foo(1,2,3))) == Array{Int, 1}
 @test to_vector((Nested(Foo(1,2,3),4.0,5.0), Nested(Foo(6,7,8), 9, 10))) == Float64[1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0,9.0,10.0]
 @test typeof(to_vector((Nested(Foo(1,2,3),4.0,5.0), Nested(Foo(6,7,8), 9, 10)))) == Array{Float64, 1}
+@test to_tuple((Nested(Foo(1,2,3),4.0,5.0), Nested(Foo(6,7,8), 9, 10))) == (1,2,3,4.0,5.0,6,7,8,9,10)
 
-nested = Nested(Foo(1,2,3), 4.0, 5.0)
 @test to_tuple(from_tuple(Nested, to_tuple(nested))) == to_tuple(nested)
 @test to_vector(from_vector(Nested, to_vector(nested))) == to_vector(nested)
 @test to_tuple(from_tuple(Tuple{Nested, Nested}, to_tuple((nested, nested)))) == to_tuple((nested, nested))
@@ -50,28 +52,28 @@ end
 
 function test_to_vector()
     foo = Foo(1.0, 2.0, 3.0)
-    for i = 1:1e5
+    for i = 1:1e3
         data = to_vector(foo)
     end
 end
 
 function test_to_vector_naive()
     foo = Foo(1.0, 2.0, 3.0)
-    for i = 1:1e5
+    for i = 1:1e3
         data = to_vector_naive(foo)
     end
 end
 
 function test_to_tuple()
     foo = Foo(1.0, 2.0, 3.0)
-    for i = 1:1e5
+    for i = 1:1e3
         data = to_tuple(foo)
     end
 end
 
 function test_to_tuple_naive()
     foo = Foo(1.0, 2.0, 3.0)
-    for i = 1:1e5
+    for i = 1:1e3
         data = to_tuple_naive(foo)
     end
 end
@@ -79,7 +81,7 @@ end
 function test_from_vector()
     foo = Foo(1.0, 2.0, 3.0)
     data = to_vector(foo)
-    for i = 1:1e5
+    for i = 1:1e3
         foo2 = from_vector(Foo, data)
     end
 end
@@ -87,7 +89,7 @@ end
 function test_from_vector_naive()
     foo = Foo(1.0, 2.0, 3.0)
     data = to_vector(foo)
-    for i = 1:1e5
+    for i = 1:1e3
         foo2 = from_vector_naive(Foo, data)
     end
 end
