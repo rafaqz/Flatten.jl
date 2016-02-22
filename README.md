@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/rdeits/Flatten.jl.svg?branch=master)](https://travis-ci.org/rdeits/Flatten.jl)
 
-Flatten Julia types to tuples or vectors, and restore them later.
+Flatten Julia types to tuples or vectors, and restore them later. Think of it as a primitive form of serialization, in which the serialized data is a meaningful list of numbers, rather than an arbitrary string of bytes. 
 
 # Why?
 
