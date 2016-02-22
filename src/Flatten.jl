@@ -84,10 +84,18 @@ function construct(T, counter)
     expr = Expr(:call, T)
     for subtype in T.types
         push!(expr.args, construct(subtype, counter))
-        # push!(expr.args, :(data[$(i)]))
     end
     expr
 end
+
+function construct{T <: Tuple}(::Type{T}, counter)
+    expr = Expr(:tuple)
+    for subtype in T.types
+        push!(expr.args, construct(subtype, counter))
+    end
+    expr
+end
+
 
 function construct(T::TypeVar, counter)
     expr = Expr(:ref, :data, counter.value)

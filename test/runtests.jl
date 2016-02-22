@@ -27,6 +27,7 @@ foo = Foo(1.0, 2.0, 3.0)
 nested = Nested(Foo(1,2,3), 4.0, 5.0)
 @test to_tuple(from_tuple(Nested, to_tuple(nested))) == to_tuple(nested)
 @test to_vector(from_vector(Nested, to_vector(nested))) == to_vector(nested)
+@test to_tuple(from_tuple(Tuple{Nested, Nested}, to_tuple((nested, nested)))) == to_tuple((nested, nested))
 
 function to_vector_naive(obj)
     v = Array(Float64, length(fieldnames(obj)))
