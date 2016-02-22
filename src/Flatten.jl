@@ -1,6 +1,6 @@
 module Flatten
 
-export to_tuple, to_vector, from_tuple, from_vector
+export to_tuple, to_vector, from_tuple, from_vector, wrap
 
 function field_expressions(T, expr::Union{Expr, Symbol})
     expressions = Expr[]
@@ -20,6 +20,10 @@ function field_expressions{T2 <: Tuple}(T::Type{T2}, expr::Union{Expr, Symbol})
         append!(expressions, field_expressions(fieldtype(T, i), field_expr))
     end
     expressions
+end
+
+function field_expressions(T::Type{Any}, expr::Union{Expr, Symbol})
+    [expr]
 end
 
 function field_expressions{T2 <: Number}(T::Type{T2}, expr::Union{Expr, Symbol})
@@ -96,17 +100,23 @@ function construct{T <: Tuple}(::Type{T}, counter)
     expr
 end
 
-
-function construct(T::TypeVar, counter)
+function construct_element(counter)
     expr = Expr(:ref, :data, counter.value)
     counter.value += 1
     expr
 end
 
+
+function construct(T::TypeVar, counter)
+    construct_element(counter)
+end
+
 function construct{T <: Number}(::Type{T}, counter)
-    expr = Expr(:ref, :data, counter.value)
-    counter.value += 1
-    expr
+    construct_element(counter)
+end
+
+function construct(::Type{Any}, counter)
+    construct_element(counter)
 end
 
 
@@ -119,5 +129,10 @@ end
 end
 
 from_vector(T, data) = from_tuple(T, data)
+
+function wrap(func, InputType)
+	return x -> to_vector(func(from_vector(InputType, x)))
+end
+
 
 end # module
