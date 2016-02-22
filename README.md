@@ -8,6 +8,10 @@ Flatten Julia types to tuples or vectors, and restore them later. Think of it as
 
 Let's say you have a function that takes structured data (i.e. data defined by a Julia type). You may want to interface with external tools, like optimization solvers, which expect to operate only on flat vectors of numbers. Rather than writing code yourself to pack or unpack your particular data into vectors, you can just use Flatten.jl to automatically handle all the conversions.
 
+# Is this a good idea?
+
+Uh...I'm not sure. Possibly not. Use at your own risk. 
+
 ## Example
 
 Let's define a data type:
