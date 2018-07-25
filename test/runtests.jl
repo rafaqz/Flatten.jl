@@ -16,29 +16,37 @@ end
 foo = Foo(1.0, 2.0, 3.0)
 nested = Nested(Foo(1,2,3), 4.0, 5.0)
 
-@test to_vector(from_vector(Foo, to_vector(foo))) == to_vector(foo)
-@test to_tuple(from_tuple(Foo, to_tuple(foo))) == to_tuple(foo)
-@test to_tuple(Nested(Foo(1,2,3),4,5)) == (1,2,3,4,5)
-@test to_tuple((Nested(Foo(1,2,3),4,5), Nested(Foo(6,7,8), 9, 10))) == (1,2,3,4,5,6,7,8,9,10)
-@test to_tuple(Nested(Foo(1,2,3), (4,5), (6,7))) == (1,2,3,4,5,6,7)
-@test to_vector(Foo(1,2,3)) == Int[1,2,3]
-@test typeof(to_vector(Foo(1,2,3))) == Array{Int, 1}
+@test flatten(Tuple, Nested(Foo(1,2,3),4,5)) == (1,2,3,4,5)
+@test flatten(Tuple, (Nested(Foo(1,2,3),4,5), Nested(Foo(6,7,8), 9, 10))) == (1,2,3,4,5,6,7,8,9,10)
+@test flatten(Tuple, Nested(Foo(1,2,3), (4,5), (6,7))) == (1,2,3,4,5,6,7)
+@test flatten(Vector, Foo(1,2,3)) == Int[1,2,3]
+@test typeof(flatten(Vector, Foo(1,2,3))) == Array{Int, 1}
+
+@test flatten(Vector, construct(Foo{Float64}, flatten(Vector, foo))) == flatten(Vector, foo)
+@test flatten(Tuple, construct(Foo{Float64}, flatten(Tuple, foo))) == flatten(Tuple, foo)
+@test flatten(Vector, reconstruct(foo, flatten(Vector, foo))) == flatten(Vector, foo)
+@test flatten(Tuple, reconstruct(foo, flatten(Tuple, foo))) == flatten(Tuple, foo)
 
 # Test nested types and tuples
-@test to_vector((Nested(Foo(1,2,3),4.0,5.0), Nested(Foo(6,7,8), 9, 10))) == Float64[1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0,9.0,10.0]
-@test typeof(to_vector((Nested(Foo(1,2,3),4.0,5.0), Nested(Foo(6,7,8), 9, 10)))) == Array{Float64, 1}
-@test to_tuple((Nested(Foo(1,2,3),4.0,5.0), Nested(Foo(6,7,8), 9, 10))) == (1,2,3,4.0,5.0,6,7,8,9,10)
-@test to_tuple(from_tuple(Nested, to_tuple(nested))) == to_tuple(nested)
-@test to_vector(from_vector(Nested, to_vector(nested))) == to_vector(nested)
-@test to_tuple(from_tuple(Tuple{Nested, Nested}, to_tuple((nested, nested)))) == to_tuple((nested, nested))
+@test flatten(Vector, (Nested(Foo(1,2,3),4.0,5.0), Nested(Foo(6,7,8), 9, 10))) == Float64[1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0,9.0,10.0]
+@test typeof(flatten(Vector, (Nested(Foo(1,2,3),4.0,5.0), Nested(Foo(6,7,8), 9, 10)))) == Array{Float64, 1}
+@test flatten(Tuple, (Nested(Foo(1,2,3),4.0,5.0), Nested(Foo(6,7,8), 9, 10))) == (1,2,3,4.0,5.0,6,7,8,9,10)
+@test flatten(Tuple, construct(Nested{Int,Float64}, flatten(Tuple, nested))) == flatten(Tuple, nested)
+@test flatten(Tuple, reconstruct(nested, flatten(Tuple, nested))) == flatten(Tuple, nested)
+@test flatten(Vector, construct(Nested{Int,Float64}, flatten(Vector, nested))) == flatten(Vector, nested)
+@test flatten(Vector, reconstruct(nested, flatten(Vector, nested))) == flatten(Vector, nested)
+@test flatten(Tuple, construct(Tuple{Nested{Int,Float64}, Nested{Int,Float64}}, flatten(Tuple, (nested, nested)))) == flatten(Tuple, (nested, nested))
+@test flatten(Tuple, reconstruct((nested, nested), flatten(Tuple, (nested, nested)))) == flatten(Tuple, (nested, nested))
 
 # Test non-parametric types
 type AnyPoint
     x
     y
 end
-@test to_tuple(AnyPoint(1,2)) == (1,2)
-@test to_tuple(from_tuple(AnyPoint, (1,2))) == (1,2)
+anypoint = AnyPoint(1,2)
+@test flatten(Tuple, anypoint) == (1,2)
+@test flatten(Tuple, construct(AnyPoint, (1,2))) == (1,2)
+@test flatten(Tuple, reconstruct(anypoint, (1,2))) == (1,2)
 
 # Test function wrapping
 type Point
@@ -55,7 +63,7 @@ wrapped_distance = wrap(distance, Point)
 
 # Test performance
 function to_vector_naive(obj)
-    v = Array(Float64, length(fieldnames(obj)))
+    v = Vector{Float64}(length(fieldnames(obj)))
     for (i, field) in enumerate(fieldnames(obj))
         v[i] = getfield(obj, field)
     end
@@ -70,13 +78,13 @@ function from_vector_naive(T, data)
     T(data...)
 end
 
-@test to_vector_naive(foo) == to_vector(foo)
-@test to_tuple_naive(foo) == to_tuple(foo)
+@test to_vector_naive(foo) == flatten(Vector,foo)
+@test to_tuple_naive(foo) == flatten(Tuple, foo)
 
 function test_to_vector()
     foo = Foo(1.0, 2.0, 3.0)
     for i = 1:1e3
-        data = to_vector(foo)
+        data = flatten(Vector, foo)
     end
 end
 
@@ -90,7 +98,7 @@ end
 function test_to_tuple()
     foo = Foo(1.0, 2.0, 3.0)
     for i = 1:1e3
-        data = to_tuple(foo)
+        data = flatten(Tuple, foo)
     end
 end
 
@@ -103,15 +111,15 @@ end
 
 function test_from_vector()
     foo = Foo(1.0, 2.0, 3.0)
-    data = to_vector(foo)
+    data = flatten(Vector, foo)
     for i = 1:1e3
-        foo2 = from_vector(Foo, data)
+        foo2 = construct(Foo{Float64}, data)
     end
 end
 
 function test_from_vector_naive()
     foo = Foo(1.0, 2.0, 3.0)
-    data = to_vector(foo)
+    data = flatten(Vector, foo)
     for i = 1:1e3
         foo2 = from_vector_naive(Foo, data)
     end

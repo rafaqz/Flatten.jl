@@ -1,19 +1,20 @@
 module Flatten
 
-export to_tuple, to_vector, from_tuple, from_vector, wrap
+using Unitful, Flattenable
+export flatten, construct, reconstruct, wrap
 
-function field_expressions(T, expr::Union{Expr, Symbol})
+field_expressions(T, expr::Union{Expr, Symbol}) = begin
     expressions = Expr[]
+    isflat = flattenable(T)
     for (i, field) in enumerate(fieldnames(T))
-        field_expr = Expr(:., expr, Expr(:quote, field))
-        append!(expressions, field_expressions(fieldtype(T, i), field_expr))
+        if isflat[i]
+            field_expr = Expr(:., expr, Expr(:quote, field))
+            append!(expressions, field_expressions(fieldtype(T, i), field_expr))
+        end
     end
     expressions
 end
-
-field_expressions{T2 <: AbstractArray}(T::Type{T2}, expr::Union{Expr, Symbol}) = error("Cannot flatten variable-length objects like arrays. Replace any arrays with tuples if possible.")
-
-function field_expressions{T2 <: Tuple}(T::Type{T2}, expr::Union{Expr, Symbol})
+field_expressions{T2 <: Tuple}(T::Type{T2}, expr::Union{Expr, Symbol}) = begin
     expressions = Expr[]
     for i in 1:length(T.types)
         field_expr = Expr(:ref, expr, i)
@@ -21,38 +22,22 @@ function field_expressions{T2 <: Tuple}(T::Type{T2}, expr::Union{Expr, Symbol})
     end
     expressions
 end
+field_expressions(T::Type{Any}, expr::Union{Expr, Symbol}) = [expr]
+field_expressions(T::Type{T2}, expr::Union{Expr, Symbol}) where T2 <: Unitful.Quantity = [Expr(:., expr, QuoteNode(:val))]
+field_expressions(T::Type{T2}, expr::Union{Expr, Symbol}) where T2 <: Number = [expr]
+field_expressions(T::Type{T2}, expr::Union{Expr, Symbol}) where T2 <: AbstractArray = error("Cannot flatten variable-length objects like arrays. Replace any arrays with tuples if possible.")
 
-function field_expressions(T::Type{Any}, expr::Union{Expr, Symbol})
-    [expr]
-end
-
-function field_expressions{T2 <: Number}(T::Type{T2}, expr::Union{Expr, Symbol})
-    [expr]
-end
-
-function to_tuple_internal(T)
-    expr = Expr(:tuple)
-    append!(expr.args, field_expressions(T, :(T)))
-    expr
-end
-
-@generated function to_tuple(T)
-    to_tuple_internal(T)
-end
-
-function all_field_types(T)
+all_field_types(T) = begin
     field_types = DataType[]
-    for i in 1:length(fieldnames(T))
-        append!(field_types, all_field_types(fieldtype(T, i)))
+    isflat = flattenable(T)
+    for (i, field) in enumerate(fieldnames(T))
+        isflat[i] && append!(field_types, all_field_types(fieldtype(T, i)))
     end
     field_types
 end
-
-function all_field_types{T2 <: Number}(T::Type{T2})
-    [T]
-end
-
-function all_field_types{T2 <: Tuple}(T::Type{T2})
+all_field_types(T::Type{T2}) where T2 <: Number = [T]
+all_field_types(T::Type{T2}) where T2 <: Unitful.Quantity = [fieldtype(T, :val)]
+all_field_types(T::Type{T2}) where T2 <: Tuple = begin
     field_types = DataType[]
     for i in 1:length(T.types)
         append!(field_types, all_field_types(T.types[i]))
@@ -60,12 +45,17 @@ function all_field_types{T2 <: Tuple}(T::Type{T2})
     field_types
 end
 
-function to_vector_internal(T)
+@generated function flatten(::Type{Tuple}, T)
+    expr = Expr(:tuple)
+    append!(expr.args, field_expressions(T, :(T)))
+    expr
+end
+@generated function flatten(::Type{V}, T) where V <: AbstractVector
     field_types = all_field_types(T)
     num_elements = length(field_types)
     element_type = reduce(promote_type, field_types)
     expr = quote
-        v = Array{$(element_type)}($(num_elements))
+        v = V{$element_type}($num_elements)
     end
     for (i, field_expr) in enumerate(field_expressions(T, :(T)))
         push!(expr.args, Expr(:(=), Expr(:ref, :v, i), field_expr))
@@ -74,9 +64,6 @@ function to_vector_internal(T)
     return expr
 end
 
-@generated function to_vector(T)
-    to_vector_internal(T)
-end
 
 type Counter
     value::Int
@@ -84,21 +71,51 @@ type Counter
     Counter() = new(1)
 end
 
-function construct(T, counter)
+_construct(T, counter) = begin
     expr = Expr(:call, T)
     for subtype in T.types
-        push!(expr.args, construct(subtype, counter))
+        push!(expr.args, _construct(subtype, counter))
     end
     expr
 end
-
-function construct{T <: Tuple}(::Type{T}, counter)
+_construct(::Type{T}, counter) where T <: Tuple = begin
     expr = Expr(:tuple)
     for subtype in T.types
-        push!(expr.args, construct(subtype, counter))
+        push!(expr.args, _construct(subtype, counter))
     end
     expr
 end
+_construct(T::TypeVar, counter) = construct_element(counter)
+_construct(::Type{Any}, counter) = construct_element(counter)
+_construct(::Type{T}, counter) where T <: Number = construct_element(counter)
+_construct(::Type{T}, counter) where T <: Unitful.Quantity =
+    Expr(:call, T, construct_element(counter))
+
+_reconstruct(T, counter) = begin
+    expr = Expr(:call, T)
+    isflat = flattenable(T)
+    fnames = fieldnames(T)
+    for (i, subtype) in enumerate(T.types)
+        if isflat[i]
+            push!(expr.args, _reconstruct(subtype, counter, ))
+        else
+            push!(expr.args, Expr(:., :t, QuoteNode(fnames[i])))
+        end
+    end
+    expr
+end
+_reconstruct(::Type{T}, counter) where T <: Tuple = begin
+    expr = Expr(:tuple)
+    for subtype in T.types
+        push!(expr.args, _reconstruct(subtype, counter))
+    end
+    expr
+end
+_reconstruct(T::TypeVar, counter) = construct_element(counter)
+_reconstruct(::Type{Any}, counter) = construct_element(counter)
+_reconstruct(::Type{T}, counter) where T <: Number = construct_element(counter)
+_reconstruct(::Type{T}, counter) where T <: Unitful.Quantity =
+    Expr(:call, T, construct_element(counter))
 
 function construct_element(counter)
     expr = Expr(:ref, :data, counter.value)
@@ -106,33 +123,16 @@ function construct_element(counter)
     expr
 end
 
-
-function construct(T::TypeVar, counter)
-    construct_element(counter)
+@generated function construct(::Type{T}, data) where T
+    _construct(T, Counter())
 end
 
-function construct{T <: Number}(::Type{T}, counter)
-    construct_element(counter)
+@generated function reconstruct(t::T, data) where T
+    _reconstruct(T, Counter())
 end
-
-function construct(::Type{Any}, counter)
-    construct_element(counter)
-end
-
-
-function from_tuple_internal(T, data)
-    construct(T, Counter())
-end
-
-@generated function from_tuple{T}(::Type{T}, data)
-    from_tuple_internal(T, data)
-end
-
-from_vector(T, data) = from_tuple(T, data)
 
 function wrap(func, InputType)
-	return x -> to_vector(func(from_vector(InputType, x)))
+	x -> flatten(Vector, func(construct(InputType, x)))
 end
-
 
 end # module
