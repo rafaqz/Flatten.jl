@@ -43,11 +43,12 @@ Uh...I'm not sure. Possibly not. Use at your own risk.
 Let's define a data type:
 
 ```julia
-julia> type Foo{T}
-       a::T
-       b::T
-       c::T
-       end
+julia> 
+type Foo{T}
+   a::T
+   b::T
+   c::T
+end
 
 julia> f = Foo(1,2,3)
 Foo{Int64}(1,2,3)
@@ -73,7 +74,7 @@ julia> flatten(Vector, f)
 We can also unflatten the data to recover the original structure:
 
 ```julia
-julia> from_tuple(Foo, (1,2,3))
+julia> construct(Foo{Int64}, (1,2,3))
 Foo{Int64}(1,2,3)
 ```
 
@@ -106,7 +107,7 @@ Note that to_vector has automatically promoted all elements to `Float64`, since 
 We can also recover nested types from flat data:
 
 ```julia
- julia> from_tuple(Nested, (1,2,3,4,5))
+ julia> construct(Nested{Int64,Int64}, (1,2,3,4,5))
 Nested{Int64,Int64}(Foo{Int64}(1,2,3),4,5)
 ```
 
@@ -116,9 +117,45 @@ Tuples of nested types work too:
 julia> flatten(Tuple, (Nested(Foo(1,2,3),4,5), Nested(Foo(6,7,8),9,10)))
 (1,2,3,4,5,6,7,8,9,10)
 
-julia> from_tuple(Tuple{Nested, Nested}, (1,2,3,4,5,6,7,8,9,10))
+julia> construct(Tuple{Nested{Int64,Int64}, Nested{Int64,Int64}}, (1,2,3,4,5,6,7,8,9,10))
 (Nested{Int64,Int64}(Foo{Int64}(1,2,3),4,5),Nested{Int64,Int64}(Foo{Int64}(6,7,8),9,10))
 ```
+
+With this fork you can also exclude fields. The magic gets almost incomprehensible at this point. 
+
+```
+using Flattenable
+import Flattenable: flattenable
+type Foo{T}
+   a::T
+   b::T
+   c::T
+end
+
+@flattenable struct Partial{T1, T2}
+           f::Foo{T1} | true
+           b::T2      | true
+           c::T2      | false
+       end
+
+# This must be declared *after* all flattenable macros have run:
+using Flatten 
+
+julia> 
+n = Partial(Foo(1,2,3), 4.0, 5.0)
+Partial{Int64,Float64}(Foo{Int64}(1, 2,3),4.0,5.0)
+
+julia> flatten(Tuple, n)
+(1,2,3,4.0)
+
+julia> flatten(Vector, n)
+5-element Array{Float64,1}:
+ 1.0
+ 2.0
+ 3.0
+ 4.0
+```
+
 
 # How? 
 
