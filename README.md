@@ -1,12 +1,38 @@
 # Flatten
 
-[![Build Status](https://travis-ci.org/rdeits/Flatten.jl.svg?branch=master)](https://travis-ci.org/rdeits/Flatten.jl)
+[![Build Status](https://travis-ci.org/rafaqz/Flatten.jl.svg?branch=master)](https://travis-ci.org/rafaqz/Flatten.jl)
 
-Flatten Julia types to tuples or vectors, and restore them later. Think of it as a primitive form of serialization, in which the serialized data is a meaningful list of numbers, rather than an arbitrary string of bytes. 
+This is a fork of rdeits original package, with a number of name
+simplifications.
+
+It also adds some features, making this package even more magical and 
+weird than it already was.
+
+First it adds support for Unitful.jl units: they are stripped from the vector, and added
+back on reconstruction. 
+
+It also adds [MetaField.jl](https://github.com/rafaqz/MetaFields.jl) compatibility via
+[Flattenable.jl](https://github.com/rafaqz/Flattenable.jl) to optionally exclude
+certain fields. This requires using `reconstruct()` instead of `construct()` and
+passing in data instead of a type --- the fields excluded with `@flattenable
+false` are taken from the original data. 
+
+TODO: Properly document changes.
+
+---
+
+Flatten Julia types to tuples or vectors, and restore them later. Think of it as
+a primitive form of serialization, in which the serialized data is a meaningful
+list of numbers, rather than an arbitrary string of bytes. 
+
 
 # Why?
 
-Let's say you have a function that takes structured data (i.e. data defined by a Julia type). You may want to interface with external tools, like optimization solvers, which expect to operate only on flat vectors of numbers. Rather than writing code yourself to pack or unpack your particular data into vectors, you can just use Flatten.jl to automatically handle all the conversions.
+Let's say you have a function that takes structured data (i.e. data defined by a
+Julia type). You may want to interface with external tools, like optimization
+solvers, which expect to operate only on flat vectors of numbers. Rather than
+writing code yourself to pack or unpack your particular data into vectors, you
+can just use Flatten.jl to automatically handle all the conversions.
 
 # Is this a good idea?
 
@@ -30,14 +56,14 @@ Foo{Int64}(1,2,3)
 Now we can flatten this data type into a tuple:
 
 ```julia
-julia> to_tuple(f)
+julia> flatten(Tuple, f)
 (1,2,3)
 ```
 
 or a vector:
 
 ```julia
-julia> to_vector(f)
+julia> flatten(Vector, f)
 3-element Array{Int64,1}:
  1
  2
@@ -63,10 +89,10 @@ julia> type Nested{T1, T2}
 julia> n = Nested(Foo(1,2,3), 4.0, 5.0)
 Nested{Int64,Float64}(Foo{Int64}(1,2,3),4.0,5.0)
 
-julia> to_tuple(n)
+julia> flatten(Tuple, n)
 (1,2,3,4.0,5.0)
 
-julia> to_vector(n)
+julia> flatten(Vector, n)
 5-element Array{Float64,1}:
  1.0
  2.0
@@ -87,7 +113,7 @@ Nested{Int64,Int64}(Foo{Int64}(1,2,3),4,5)
 Tuples of nested types work too:
 
 ```julia
-julia> to_tuple((Nested(Foo(1,2,3),4,5), Nested(Foo(6,7,8),9,10)))
+julia> flatten(Tuple, (Nested(Foo(1,2,3),4,5), Nested(Foo(6,7,8),9,10)))
 (1,2,3,4,5,6,7,8,9,10)
 
 julia> from_tuple(Tuple{Nested, Nested}, (1,2,3,4,5,6,7,8,9,10))
@@ -97,38 +123,3 @@ julia> from_tuple(Tuple{Nested, Nested}, (1,2,3,4,5,6,7,8,9,10))
 # How? 
 
 Flatten.jl uses Julia's [generated functions](http://docs.julialang.org/en/release-0.4/manual/metaprogramming/#generated-functions) to generate efficient code for your particular data types, which can be 10 to 100 times faster than naively packing and unpacking data. You can look at the generated expressions for a particular type:
-
-
-### Flattening...
-
-```julia
-julia> Flatten.to_tuple_internal(typeof(Foo(1,2,3)))
-:((T.a,T.b,T.c))
-
-julia> Flatten.to_vector_internal(typeof(Foo(1,2,3)))
-quote  # /Users/rdeits/.julia/Flatten/src/Flatten.jl, line 64:
-    v = Array{Int64}(3)
-    v[1] = T.a
-    v[2] = T.b
-    v[3] = T.c
-    v
-end
-
-julia> Flatten.to_vector_internal(typeof(Nested(Foo(1,2,3),4,5)))
-quote  # /Users/rdeits/.julia/Flatten/src/Flatten.jl, line 64:
-    v = Array{Int64}(5)
-    v[1] = T.f.a
-    v[2] = T.f.b
-    v[3] = T.f.c
-    v[4] = T.b
-    v[5] = T.c
-    v
-end
-```
-
-### ...and unflattening
-
-```julia
-julia> Flatten.from_tuple_internal(Nested, (1,2,3,4,5))
-:((Nested{T1,T2})((Foo{T1})(data[1],data[2],data[3]),data[4],data[5]))
-```
