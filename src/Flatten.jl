@@ -7,7 +7,7 @@ field_expressions(T, expr::Union{Expr, Symbol}) = begin
     expressions = Expr[]
     isflat = flattenable(T)
     for (i, field) in enumerate(fieldnames(T))
-        if isflat[i]
+        if isflat[i] == Flat()
             field_expr = Expr(:., expr, Expr(:quote, field))
             append!(expressions, field_expressions(fieldtype(T, i), field_expr))
         end
@@ -31,7 +31,7 @@ all_field_types(T) = begin
     field_types = DataType[]
     isflat = flattenable(T)
     for (i, field) in enumerate(fieldnames(T))
-        isflat[i] && append!(field_types, all_field_types(fieldtype(T, i)))
+        isflat[i] == Flat() && append!(field_types, all_field_types(fieldtype(T, i)))
     end
     field_types
 end
@@ -96,7 +96,7 @@ _reconstruct(T, path, counter) = begin
     isflat = flattenable(T)
     fnames = fieldnames(T)
     for (i, subtype) in enumerate(T.types)
-        if isflat[i]
+        if isflat[i] == Flat()
             push!(expr.args, _reconstruct(subtype, Expr(:., path, QuoteNode(fnames[i])), counter))
         else
             push!(expr.args, Expr(:., path, QuoteNode(fnames[i])))

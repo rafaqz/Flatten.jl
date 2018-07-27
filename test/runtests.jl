@@ -14,15 +14,15 @@ type Nested{T1, T2}
 end
 
 @flattenable struct Partial{T}
-   a::T | true
-   b::T | true
-   c::T | false
+    a::T | Flat()
+    b::T | Flat()
+    c::T | NotFlat()
 end
 
 @flattenable struct NestedPartial{P,T}
-   p::P | true
-   b::T | true
-   c::T | false
+    p::P | Flat()
+    b::T | Flat()
+    c::T | NotFlat()
 end
 
 
