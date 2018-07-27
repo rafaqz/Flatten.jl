@@ -47,7 +47,7 @@ end
 
 @generated function flatten(::Type{Tuple}, T)
     expr = Expr(:tuple)
-    append!(expr.args, field_expressions(T, :(T)))
+    append!(expr.args, field_expressions(T, :T))
     expr
 end
 @generated function flatten(::Type{V}, T) where V <: AbstractVector
@@ -57,7 +57,7 @@ end
     expr = quote
         v = V{$element_type}($num_elements)
     end
-    for (i, field_expr) in enumerate(field_expressions(T, :(T)))
+    for (i, field_expr) in enumerate(field_expressions(T, :T))
         push!(expr.args, Expr(:(=), Expr(:ref, :v, i), field_expr))
     end
     push!(expr.args, :v)
@@ -91,30 +91,30 @@ _construct(::Type{T}, counter) where T <: Number = construct_element(counter)
 _construct(::Type{T}, counter) where T <: Unitful.Quantity =
     Expr(:call, T, construct_element(counter))
 
-_reconstruct(T, counter) = begin
+_reconstruct(T, path, counter) = begin
     expr = Expr(:call, T)
     isflat = flattenable(T)
     fnames = fieldnames(T)
     for (i, subtype) in enumerate(T.types)
         if isflat[i]
-            push!(expr.args, _reconstruct(subtype, counter, ))
+            push!(expr.args, _reconstruct(subtype, Expr(:., path, QuoteNode(fnames[i])), counter))
         else
-            push!(expr.args, Expr(:., :t, QuoteNode(fnames[i])))
+            push!(expr.args, Expr(:., path, QuoteNode(fnames[i])))
         end
     end
     expr
 end
-_reconstruct(::Type{T}, counter) where T <: Tuple = begin
+_reconstruct(::Type{T}, path, counter) where T <: Tuple = begin
     expr = Expr(:tuple)
-    for subtype in T.types
-        push!(expr.args, _reconstruct(subtype, counter))
+    for (i, subtype) in enumerate(T.types)
+        push!(expr.args, _reconstruct(subtype, Expr(:ref, path, 1), counter))
     end
     expr
 end
-_reconstruct(T::TypeVar, counter) = construct_element(counter)
-_reconstruct(::Type{Any}, counter) = construct_element(counter)
-_reconstruct(::Type{T}, counter) where T <: Number = construct_element(counter)
-_reconstruct(::Type{T}, counter) where T <: Unitful.Quantity =
+_reconstruct(T::TypeVar, path, counter) = construct_element(counter)
+_reconstruct(::Type{Any}, path, counter) = construct_element(counter)
+_reconstruct(::Type{T}, path, counter) where T <: Number = construct_element(counter)
+_reconstruct(::Type{T}, path, counter) where T <: Unitful.Quantity =
     Expr(:call, T, construct_element(counter))
 
 function construct_element(counter)
@@ -123,12 +123,20 @@ function construct_element(counter)
     expr
 end
 
-@generated function construct(::Type{T}, data) where T
+function construct_inner(::Type{T}, data) where T
     _construct(T, Counter())
 end
 
-@generated function reconstruct(t::T, data) where T
-    _reconstruct(T, Counter())
+@generated function construct(::Type{T}, data) where T
+    construct_inner(T, Counter())
+end
+
+function reconstruct_inner(::Type{T}, data) where T
+    _reconstruct(T, :original, Counter())
+end
+
+@generated function reconstruct(original::T, data) where T
+    reconstruct_inner(T, Counter())
 end
 
 function wrap(func, InputType)

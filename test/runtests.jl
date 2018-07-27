@@ -1,5 +1,5 @@
-using Flatten
-using Base.Test
+using Flattenable
+import Flattenable: flattenable
 
 type Foo{T}
     a::T
@@ -12,6 +12,22 @@ type Nested{T1, T2}
     b::T2
     c::T2
 end
+
+@flattenable struct Partial{T}
+   a::T | true
+   b::T | true
+   c::T | false
+end
+
+@flattenable struct NestedPartial{P,T}
+   p::P | true
+   b::T | true
+   c::T | false
+end
+
+
+using Flatten
+using Base.Test
 
 foo = Foo(1.0, 2.0, 3.0)
 nested = Nested(Foo(1,2,3), 4.0, 5.0)
@@ -37,6 +53,14 @@ nested = Nested(Foo(1,2,3), 4.0, 5.0)
 @test flatten(Vector, reconstruct(nested, flatten(Vector, nested))) == flatten(Vector, nested)
 @test flatten(Tuple, construct(Tuple{Nested{Int,Float64}, Nested{Int,Float64}}, flatten(Tuple, (nested, nested)))) == flatten(Tuple, (nested, nested))
 @test flatten(Tuple, reconstruct((nested, nested), flatten(Tuple, (nested, nested)))) == flatten(Tuple, (nested, nested))
+
+# Partial fields with @flattenable
+partial = Partial(1.0, 2.0, 3.0)
+nestedpartial = NestedPartial(Partial(1.0, 2.0, 3.0), 4.0, 5.0) 
+@test flatten(Vector, nestedpartial) == [1.0, 2.0, 4.0]
+@test flatten(Tuple, nestedpartial) == (1.0, 2.0, 4.0)
+@test flatten(Vector, reconstruct(nestedpartial, flatten(Vector, nestedpartial))) == flatten(Vector, nestedpartial)
+@test flatten(Tuple, reconstruct(nestedpartial, flatten(Tuple, nestedpartial))) == flatten(Tuple, nestedpartial)
 
 # Test non-parametric types
 type AnyPoint
