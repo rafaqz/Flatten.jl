@@ -5,7 +5,7 @@ module Flatten
 using MetaFields, Requires
 using Base: tail
 
-export @flattenable, flattenable, Flat, NotFlat, flatten, construct, reconstruct, wrap
+export @flattenable, flattenable, Flat, NotFlat, flatten, construct, reconstruct, wrap, labelflatten, metaflatten
 
 @metafield flattenable Flat()
 
@@ -28,7 +28,7 @@ field_expressions(T, path) = begin
     end
     expressions
 end
-field_expressions{T2 <: Tuple}(T::Type{T2}, path) = begin
+field_expressions(::Type{T}, path)  where T <: Tuple = begin
     expressions = Expr(:tuple)
     for i in 1:length(T.types)
         field_expr = field_expressions(fieldtype(T, i), Expr(:ref, path, i))
@@ -36,11 +36,11 @@ field_expressions{T2 <: Tuple}(T::Type{T2}, path) = begin
     end
     expressions
 end
-field_expressions(T::Type{Any}, path) = Expr(:tuple, path)
-field_expressions(T::Type{T2}, path) where T2 <: Number = Expr(:tuple, path)
-field_expressions(T::Type{T2}, path) where T2 <: AbstractArray = error("Cannot flatten variable-length objects like arrays. Replace any arrays with tuples if possible.")
+field_expressions(::Type{Any}, path) = Expr(:tuple, path)
+field_expressions(::Type{T}, path) where T <: Number = Expr(:tuple, path)
+field_expressions(::Type{T}, path) where T <: AbstractArray = error("Cannot flatten variable-length objects like arrays. Replace any arrays with tuples if possible.")
 @require Unitful begin
-    field_expressions(T::Type{T2}, path) where T2 <: Unitful.Quantity = Expr(:tuple, Expr(:., path, QuoteNode(:val)))
+    field_expressions(::Type{T}, path) where T <: Unitful.Quantity = Expr(:tuple, Expr(:., path, QuoteNode(:val)))
 end
 
 function flatten_inner(T)
@@ -89,15 +89,22 @@ function construct_element(counter)
     expr
 end
 
+construct_inner(::Type{T} ) where T = _construct(T, Counter())
+
+@generated function construct(::Type{T}, data) where T
+    construct_inner(T)
+end
+
+
 _reconstruct(T, path) = begin
     expr = Expr(:call, T)
-    fnames = fieldnames(T)
+    subfieldnames = fieldnames(T)
     for (i, subtype) in enumerate(T.types)
         field = quote
-            if flattenable($T, $(Expr(:curly, :Val, QuoteNode(fnames[i])))) == Flat()
-                $(_reconstruct(subtype, Expr(:., path, QuoteNode(fnames[i]))))
+            if flattenable($T, $(Expr(:curly, :Val, QuoteNode(subfieldnames[i])))) == Flat()
+                $(_reconstruct(subtype, Expr(:., path, QuoteNode(subfieldnames[i]))))
             else
-                $(Expr(:., path, QuoteNode(fnames[i])))
+                $(Expr(:., path, QuoteNode(subfieldnames[i])))
             end
         end
         push!(expr.args, field)
@@ -125,14 +132,6 @@ element() = quote
         data[n]
     end
 
-function construct_inner(::Type{T} ) where T
-    _construct(T, Counter())
-end
-
-@generated function construct(::Type{T}, data) where T
-    construct_inner(T)
-end
-
 function reconstruct_inner(::Type{T}) where T
     quote
         n = 0
@@ -147,6 +146,79 @@ end
 function wrap(func, InputType)
 	x -> flatten(Vector, func(construct(InputType, x)))
 end
+
+
+_metaflatten(T, P, fname) = begin
+    expressions = Expr(:tuple)
+    subfieldnames = fieldnames(T)
+    for (i, subfieldname) in enumerate(subfieldnames)
+        field_expr = :(
+            if flattenable($T, $(Expr(:curly, :Val, QuoteNode(subfieldname)))) == Flat()
+                $(_metaflatten(fieldtype(T, i), T, subfieldname))
+            else
+                ()
+            end...
+        )
+        push!(expressions.args, Expr(:..., field_expr))
+    end
+    expressions
+end
+_metaflatten(::Type{T}, P, fname) where T <: Tuple = begin
+    expressions = Expr(:tuple)
+    for i in 1:length(T.types)
+        field_expr = _metaflatten(fieldtype(T, i), fname)
+        push!(expressions.args, Expr(:..., field_expr))
+    end
+    expressions
+end
+_metaflatten(::Type{Any}, P, fname) = metafield_get(P, fname)
+_metaflatten(::Type{T}, P, fname) where T <: Number = metafield_get(P, fname)
+_metaflatten(::Type{T}, P, fname) where T <: AbstractArray = error("Cannot flatten variable-length objects like arrays. Replace any arrays with tuples if possible.")
+
+metafield_get(P, fname) = Expr(:tuple, Expr(:call, :metafield, P, Expr(:curly, :Val, QuoteNode(fname))))
+
+metaflatten_inner(::Type{T}) where T = _metaflatten(T, :T, :unnamed)
+@generated function metaflatten(::Type{T}, metafield) where T
+    metaflatten_inner(T)
+end
+metaflatten(::T, metafield) where T = metaflatten(T, metafield)
+
+
+_labelflatten(T, fname) = begin
+    expressions = Expr(:tuple)
+    subfieldnames = fieldnames(T)
+    for (i, subfieldname) in enumerate(subfieldnames)
+        field_expr = :(
+            if flattenable($T, $(Expr(:curly, :Val, QuoteNode(subfieldname)))) == Flat()
+                $(_labelflatten(fieldtype(T, i), subfieldname))
+            else
+                ()
+            end...
+        )
+        push!(expressions.args, Expr(:..., field_expr))
+    end
+    expressions
+end
+_labelflatten(::Type{T}, fname) where T <: Tuple = begin
+    expressions = Expr(:tuple)
+    for i in 1:length(T.types)
+        field_expr = _labelflatten(fieldtype(T, i), Expr(:ref, fname, i))
+        push!(expressions.args, Expr(:..., field_expr))
+    end
+    expressions
+end
+_labelflatten(::Type{Any}, fname) = label_get(fname)
+_labelflatten(::Type{T}, fname) where T <: Number = label_get(fname)
+_labelflatten(::Type{T}, fname) where T <: AbstractArray = error("Cannot flatten variable-length objects like arrays. Replace any arrays with tuples if possible.")
+
+label_get(fname)= Expr(:tuple, QuoteNode(fname))
+
+labelflatten_inner(::Type{T}) where T = _labelflatten(T, :unnamed)
+
+@generated function labelflatten(::Type{T}) where T
+    labelflatten_inner(T)
+end
+labelflatten(::T) where T = labelflatten(T)
 
 
 end # module

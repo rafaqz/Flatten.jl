@@ -1,4 +1,4 @@
-using Flatten, BenchmarkTools
+using Flatten, BenchmarkTools, MetaFields
 import Flatten: flattenable
 
 type Foo{T}
@@ -8,21 +8,9 @@ type Foo{T}
 end
 
 type Nested{T1, T2}
-    f::Foo{T1}
-    b::T2
-    c::T2
-end
-
-@flattenable struct Partial{T}
-    a::T | Flat()
-    b::T | Flat()
-    c::T | NotFlat()
-end
-
-@flattenable struct NestedPartial{P,T}
-    p::P | Flat()
-    b::T | Flat()
-    c::T | NotFlat()
+    nf::Foo{T1}
+    nb::T2
+    nc::T2
 end
 
 
@@ -55,6 +43,21 @@ reconstruct(foo, [5.0, 5.0, 5.0])
 @test flatten(Tuple, construct(Tuple{Nested{Int,Float64}, Nested{Int,Float64}}, flatten(Tuple, (nested, nested)))) == flatten(Tuple, (nested, nested))
 @test flatten(Tuple, reconstruct((nested, nested), flatten(Tuple, (nested, nested)))) == flatten(Tuple, (nested, nested))
 
+
+@metafield foobar :nobar
+
+@flattenable @foobar struct Partial{T}
+    a::T | :foo | Flat()
+    b::T | :foo | Flat()
+    c::T | :foo | NotFlat()
+end
+
+@flattenable @foobar struct NestedPartial{P,T}
+    np::P | :bar | Flat()
+    nb::T | :bar | Flat()
+    nc::T | :bar | NotFlat()
+end
+
 # Partial fields with @flattenable
 partial = Partial(1.0, 2.0, 3.0)
 nestedpartial = NestedPartial(Partial(1.0, 2.0, 3.0), 4.0, 5.0) 
@@ -62,17 +65,18 @@ nestedpartial = NestedPartial(Partial(1.0, 2.0, 3.0), 4.0, 5.0)
 @test flatten(Tuple, nestedpartial) == (1.0, 2.0, 4.0)
 @test flatten(Vector, reconstruct(nestedpartial, flatten(Vector, nestedpartial))) == flatten(Vector, nestedpartial)
 @test flatten(Tuple, reconstruct(nestedpartial, flatten(Tuple, nestedpartial))) == flatten(Tuple, nestedpartial)
+@test metaflatten(partial, foobar) == (:foo, :foo)
+@test metaflatten(nestedpartial, foobar) == (:foo, :foo, :bar)
 
-@flattenable struct Partial{T}
-    a::T | NotFlat()
-    b::T | NotFlat()
-    c::T | Flat()
+@flattenable @foobar struct Partial{T}
+    a::T | :bar | NotFlat()
+    b::T | :bar | NotFlat()
+    c::T | :foo | Flat()   
 end
 
-@flattenable struct NestedPartial{P,T}
-    p::P | Flat()
-    b::T | NotFlat()
-    c::T | Flat()
+@flattenable @foobar struct NestedPartial{P,T}
+    nb::T | :bar | NotFlat() 
+    nc::T | :foo | Flat()    
 end
 
 # Test with changed fields
@@ -105,7 +109,20 @@ end
 wrapped_distance = wrap(distance, Point)
 @test wrapped_distance([1,2]) == [norm([1,2])]
 
-# Test performance
+@test metaflatten(foo, flattenable) == (Flatten.Flat(), Flatten.Flat(), Flatten.Flat())
+@test metaflatten(nested, flattenable) == (Flatten.Flat(), Flatten.Flat(), Flatten.Flat(), Flatten.Flat(), Flatten.Flat())
+@test metaflatten(partial, foobar) == (:foo,)
+@test metaflatten(nestedpartial, foobar) == (:foo, :foo)
+
+@test labelflatten(foo) == (:a, :b, :c)
+@test labelflatten(nested) == (:a, :b, :c, :nb, :nc)
+@test labelflatten(nestedpartial) == (:c, :nc)
+
+
+
+##############################################################################
+# Benchmarks
+
 function flatten_naive_vector(obj)
     v = Vector{Float64}(length(fieldnames(obj)))
     for (i, field) in enumerate(fieldnames(obj))
@@ -143,4 +160,3 @@ print("reconstruct vector: ")
 @btime reconstruct($foo, $data)
 print("reconstruc vector naive: ")
 @btime construct_vector_naive(Foo{Float64}, $data)
-
