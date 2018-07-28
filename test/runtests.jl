@@ -1,3 +1,4 @@
+using Revise
 using Flattenable
 import Flattenable: flattenable
 
@@ -32,16 +33,17 @@ using Base.Test
 foo = Foo(1.0, 2.0, 3.0)
 nested = Nested(Foo(1,2,3), 4.0, 5.0)
 
+@test flatten(Vector, Foo(1,2,3)) == Int[1,2,3]
+@test typeof(flatten(Vector, Foo(1,2,3))) == Array{Int, 1}
 @test flatten(Tuple, Nested(Foo(1,2,3),4,5)) == (1,2,3,4,5)
 @test flatten(Tuple, (Nested(Foo(1,2,3),4,5), Nested(Foo(6,7,8), 9, 10))) == (1,2,3,4,5,6,7,8,9,10)
 @test flatten(Tuple, Nested(Foo(1,2,3), (4,5), (6,7))) == (1,2,3,4,5,6,7)
-@test flatten(Vector, Foo(1,2,3)) == Int[1,2,3]
-@test typeof(flatten(Vector, Foo(1,2,3))) == Array{Int, 1}
 
 @test flatten(Vector, construct(Foo{Float64}, flatten(Vector, foo))) == flatten(Vector, foo)
 @test flatten(Tuple, construct(Foo{Float64}, flatten(Tuple, foo))) == flatten(Tuple, foo)
 @test flatten(Vector, reconstruct(foo, flatten(Vector, foo))) == flatten(Vector, foo)
 @test flatten(Tuple, reconstruct(foo, flatten(Tuple, foo))) == flatten(Tuple, foo)
+reconstruct(foo, [5.0, 5.0, 5.0])
 
 # Test nested types and tuples
 @test flatten(Vector, (Nested(Foo(1,2,3),4.0,5.0), Nested(Foo(6,7,8), 9, 10))) == Float64[1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0,9.0,10.0]
@@ -62,6 +64,25 @@ nestedpartial = NestedPartial(Partial(1.0, 2.0, 3.0), 4.0, 5.0)
 @test flatten(Vector, reconstruct(nestedpartial, flatten(Vector, nestedpartial))) == flatten(Vector, nestedpartial)
 @test flatten(Tuple, reconstruct(nestedpartial, flatten(Tuple, nestedpartial))) == flatten(Tuple, nestedpartial)
 
+@flattenable struct Partial{T}
+    a::T | NotFlat()
+    b::T | NotFlat()
+    c::T | Flat()
+end
+
+@flattenable struct NestedPartial{P,T}
+    p::P | Flat()
+    b::T | NotFlat()
+    c::T | Flat()
+end
+
+# Test with changed fields
+@test flatten(Vector, nestedpartial) == [3.0, 5.0]
+@test flatten(Tuple, nestedpartial) == (3.0, 5.0)
+@code_warntype reconstruct(nestedpartial, [3.0, 5.0])
+@code_warntype reconstruct(nestedpartial, (3.0, 5.0))
+Flatten.reconstruct_inner(typeof(nestedpartial))
+
 # Test non-parametric types
 type AnyPoint
     x
@@ -71,6 +92,71 @@ anypoint = AnyPoint(1,2)
 @test flatten(Tuple, anypoint) == (1,2)
 @test flatten(Tuple, construct(AnyPoint, (1,2))) == (1,2)
 @test flatten(Tuple, reconstruct(anypoint, (1,2))) == (1,2)
+
+
+
+
+(if flattenable(Nested, Val{:b}) == Flat()
+    (if flattenable(Foo, Val{:a}) == Flat()
+        (foo.a,)
+    else
+        ()
+    end...,
+    if flattenable(Foo, Val{:b}) == Flat()
+        (foo.b,)
+    else
+        ()
+    end...,
+    if flattenable(Foo, Val{:c}) == Flat()
+        (foo.c,)
+    else
+        ()
+    end...,)
+else
+    ()
+end...,
+if flattenable(Nested, Val{:b}) == Flat()
+    (foo.b,)
+else
+    ()
+end...,
+if flattenable(Nested, Val{:c}) == Flat()
+    (foo.c,)
+else
+    ()
+end...
+)
+
+T = nested
+
+((if flattenable(Nested{Int64,Float64}, Val{:f}) == Flat() # /home/raf/.julia/v0.6/Flatten/src/Flatten.jl, line 14:
+                ((if flattenable(Foo{Int64}, Val{:a}) == Flat() # /home/raf/.julia/v0.6/Flatten/src/Flatten.jl, line 14:
+                            T.f.a
+                        else  # /home/raf/.julia/v0.6/Flatten/src/Flatten.jl, line 16:
+                            ()
+                        end...,), (if flattenable(Foo{Int64}, Val{:b}) == Flat() # /home/raf/.julia/v0.6/Flatten/src/Flatten.jl, line 14:
+                            T.f.b
+                        else  # /home/raf/.julia/v0.6/Flatten/src/Flatten.jl, line 16:
+                            ()
+                        end...,), (if flattenable(Foo{Int64}, Val{:c}) == Flat() # /home/raf/.julia/v0.6/Flatten/src/Flatten.jl, line 14:
+                            T.f.c
+                        else  # /home/raf/.julia/v0.6/Flatten/src/Flatten.jl, line 16:
+                            ()
+                        end...,))
+            else  # /home/raf/.julia/v0.6/Flatten/src/Flatten.jl, line 16:
+                ()
+            end...,), (if flattenable(Nested{Int64,Float64}, Val{:b}) == Flat() # /home/raf/.julia/v0.6/Flatten/src/Flatten.jl, line 14:
+                T.b
+            else  # /home/raf/.julia/v0.6/Flatten/src/Flatten.jl, line 16:
+                ()
+            end...,), (if flattenable(Nested{Int64,Float64}, Val{:c}) == Flat() # /home/raf/.julia/v0.6/Flatten/src/Flatten.jl, line 14:
+                T.c
+            else  # /home/raf/.julia/v0.6/Flatten/src/Flatten.jl, line 16:
+                ()
+            end...,))
+
+
+
 
 # Test function wrapping
 type Point
@@ -150,22 +236,22 @@ function test_from_vector_naive()
 end
 
 gc_enable(false)
-println("to vector")
+println("flatten to vector")
 test_to_vector()
 @time test_to_vector()
-println("to vector naive")
+println("flatten to vector naive")
 test_to_vector_naive()
 @time test_to_vector_naive()
-println("to tuple")
+println("flatten to tuple")
 test_to_tuple()
 @time test_to_tuple()
-println("to tuple naive")
+println("flatten to tuple naive")
 test_to_tuple_naive()
 @time test_to_tuple_naive()
-println("from vector")
+println("reconstruct vector")
 test_from_vector()
 @time test_from_vector()
-println("from vector naive")
+println("reconstruc vector naive")
 test_from_vector_naive()
 @time test_from_vector_naive()
 gc_enable(true)
