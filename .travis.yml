@@ -28,7 +28,6 @@ matrix:
 ## uncomment the following lines to override the default test script
 script:
   - julia --color=yes -e 'Pkg.clone("https://github.com/rafaqz/MetaFields.jl.git"); Pkg.build("MetaFields")'
-  - julia --color=yes -e 'Pkg.clone("https://github.com/rafaqz/Flattenable.jl.git"); Pkg.build("Flattenable")'
   - julia -e 'Pkg.clone(pwd()); Pkg.build("Flatten"); Pkg.test("Flatten"; coverage=true)'
 after_success:
   # push coverage results to Coveralls

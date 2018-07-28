@@ -1,8 +1,16 @@
+__precompile__()
+
 module Flatten
 
-using Unitful, Flattenable
+using MetaFields, Requires
 using Base: tail
-export flatten, construct, reconstruct, wrap
+
+export @flattenable, flattenable, Flat, NotFlat, flatten, construct, reconstruct, wrap
+
+@metafield flattenable Flat()
+
+struct Flat end
+struct NotFlat end
 
 
 field_expressions(T, path) = begin
@@ -29,9 +37,11 @@ field_expressions{T2 <: Tuple}(T::Type{T2}, path) = begin
     expressions
 end
 field_expressions(T::Type{Any}, path) = Expr(:tuple, path)
-field_expressions(T::Type{T2}, path) where T2 <: Unitful.Quantity = Expr(:tuple, Expr(:., path, QuoteNode(:val)))
 field_expressions(T::Type{T2}, path) where T2 <: Number = Expr(:tuple, path)
 field_expressions(T::Type{T2}, path) where T2 <: AbstractArray = error("Cannot flatten variable-length objects like arrays. Replace any arrays with tuples if possible.")
+@require Unitful begin
+    field_expressions(T::Type{T2}, path) where T2 <: Unitful.Quantity = Expr(:tuple, Expr(:., path, QuoteNode(:val)))
+end
 
 function flatten_inner(T)
     field_expressions(T, :T)
@@ -68,8 +78,10 @@ end
 _construct(T::TypeVar, counter) = construct_element(counter)
 _construct(::Type{Any}, counter) = construct_element(counter)
 _construct(::Type{T}, counter) where T <: Number = construct_element(counter)
-_construct(::Type{T}, counter) where T <: Unitful.Quantity =
-    Expr(:call, T, construct_element(counter))
+@require Unitful begin
+    _construct(::Type{T}, counter) where T <: Unitful.Quantity =
+        Expr(:call, T, construct_element(counter))
+end
 
 function construct_element(counter)
     expr = Expr(:ref, :data, counter.value)
@@ -102,8 +114,11 @@ end
 _reconstruct(T::TypeVar, path) = element()
 _reconstruct(::Type{Any}, path) = element()
 _reconstruct(::Type{T}, path) where T <: Number = element()
-_reconstruct(::Type{T}, path) where T <: Unitful.Quantity =
-    Expr(:call, T, construct_element())
+
+@require Unitful begin
+    _reconstruct(::Type{T}, path) where T <: Unitful.Quantity =
+        Expr(:call, T, construct_element())
+end
 
 element() = quote
         n += 1
