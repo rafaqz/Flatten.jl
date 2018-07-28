@@ -1,4 +1,4 @@
-using Revise, Flatten, BenchmarkTools
+using Flatten, BenchmarkTools
 import Flatten: flattenable
 
 type Foo{T}
