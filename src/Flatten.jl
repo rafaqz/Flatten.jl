@@ -82,7 +82,7 @@ _reconstruct(T, path) = begin
     fnames = fieldnames(T)
     for (i, subtype) in enumerate(T.types)
         field = quote
-            if flattenable(T, $(Expr(:curly, :Val, QuoteNode(fnames[i])))) == Flat()
+            if flattenable($T, $(Expr(:curly, :Val, QuoteNode(fnames[i])))) == Flat()
                 $(_reconstruct(subtype, Expr(:., path, QuoteNode(fnames[i]))))
             else
                 $(Expr(:., path, QuoteNode(fnames[i])))

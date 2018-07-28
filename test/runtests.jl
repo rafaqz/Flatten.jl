@@ -79,9 +79,8 @@ end
 # Test with changed fields
 @test flatten(Vector, nestedpartial) == [3.0, 5.0]
 @test flatten(Tuple, nestedpartial) == (3.0, 5.0)
-@code_warntype reconstruct(nestedpartial, [3.0, 5.0])
-@code_warntype reconstruct(nestedpartial, (3.0, 5.0))
-Flatten.reconstruct_inner(typeof(nestedpartial))
+@test flatten(Vector, reconstruct(nestedpartial, flatten(Vector, nestedpartial))) == flatten(Vector, nestedpartial)
+@test flatten(Tuple, reconstruct(nestedpartial, flatten(Tuple, nestedpartial))) == flatten(Tuple, nestedpartial)
 
 # Test non-parametric types
 type AnyPoint
@@ -92,70 +91,6 @@ anypoint = AnyPoint(1,2)
 @test flatten(Tuple, anypoint) == (1,2)
 @test flatten(Tuple, construct(AnyPoint, (1,2))) == (1,2)
 @test flatten(Tuple, reconstruct(anypoint, (1,2))) == (1,2)
-
-
-
-
-(if flattenable(Nested, Val{:b}) == Flat()
-    (if flattenable(Foo, Val{:a}) == Flat()
-        (foo.a,)
-    else
-        ()
-    end...,
-    if flattenable(Foo, Val{:b}) == Flat()
-        (foo.b,)
-    else
-        ()
-    end...,
-    if flattenable(Foo, Val{:c}) == Flat()
-        (foo.c,)
-    else
-        ()
-    end...,)
-else
-    ()
-end...,
-if flattenable(Nested, Val{:b}) == Flat()
-    (foo.b,)
-else
-    ()
-end...,
-if flattenable(Nested, Val{:c}) == Flat()
-    (foo.c,)
-else
-    ()
-end...
-)
-
-T = nested
-
-((if flattenable(Nested{Int64,Float64}, Val{:f}) == Flat() # /home/raf/.julia/v0.6/Flatten/src/Flatten.jl, line 14:
-                ((if flattenable(Foo{Int64}, Val{:a}) == Flat() # /home/raf/.julia/v0.6/Flatten/src/Flatten.jl, line 14:
-                            T.f.a
-                        else  # /home/raf/.julia/v0.6/Flatten/src/Flatten.jl, line 16:
-                            ()
-                        end...,), (if flattenable(Foo{Int64}, Val{:b}) == Flat() # /home/raf/.julia/v0.6/Flatten/src/Flatten.jl, line 14:
-                            T.f.b
-                        else  # /home/raf/.julia/v0.6/Flatten/src/Flatten.jl, line 16:
-                            ()
-                        end...,), (if flattenable(Foo{Int64}, Val{:c}) == Flat() # /home/raf/.julia/v0.6/Flatten/src/Flatten.jl, line 14:
-                            T.f.c
-                        else  # /home/raf/.julia/v0.6/Flatten/src/Flatten.jl, line 16:
-                            ()
-                        end...,))
-            else  # /home/raf/.julia/v0.6/Flatten/src/Flatten.jl, line 16:
-                ()
-            end...,), (if flattenable(Nested{Int64,Float64}, Val{:b}) == Flat() # /home/raf/.julia/v0.6/Flatten/src/Flatten.jl, line 14:
-                T.b
-            else  # /home/raf/.julia/v0.6/Flatten/src/Flatten.jl, line 16:
-                ()
-            end...,), (if flattenable(Nested{Int64,Float64}, Val{:c}) == Flat() # /home/raf/.julia/v0.6/Flatten/src/Flatten.jl, line 14:
-                T.c
-            else  # /home/raf/.julia/v0.6/Flatten/src/Flatten.jl, line 16:
-                ()
-            end...,))
-
-
 
 
 # Test function wrapping
