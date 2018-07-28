@@ -1,44 +1,31 @@
 # Flatten
 
 [![Build Status](https://travis-ci.org/rafaqz/Flatten.jl.svg?branch=master)](https://travis-ci.org/rafaqz/Flatten.jl)
+[![Build status](https://ci.appveyor.com/api/projects/status/dpf055yo50y21g1v?svg=true)](https://ci.appveyor.com/project/rafaqz/flatten-jl)
+[![codecov.io](http://codecov.io/github/rafaqz/Cellular.jl/coverage.svg?branch=master)](http://codecov.io/github/rafaqz/Cellular.jl?branch=master)
 
-This is a fork of rdeits original package, with a number of name
-simplifications.
-
-It also adds some features, making this package even more magical and 
-weird than it already was.
-
-First it adds support for Unitful.jl units: they are stripped from the vector, and added
-back on reconstruction. 
-
-It also adds [MetaField.jl](https://github.com/rafaqz/MetaFields.jl) compatibility via
-[Flattenable.jl](https://github.com/rafaqz/Flattenable.jl) to optionally exclude
-certain fields. This requires using `reconstruct()` instead of `construct()` and
-passing in data instead of a type --- the fields excluded with `@flattenable
-false` are taken from the original data. 
-
-TODO: Properly document changes.
-
----
-
-Flatten Julia types to tuples or vectors, and restore them later. Think of it as
-a primitive form of serialization, in which the serialized data is a meaningful
-list of numbers, rather than an arbitrary string of bytes. 
+Flatten.jl converts data between nested and flat structures, using `flatten()`
+and `reconstruct()` functions. This facilitates building modular, compostable code
+while still providing access to differentiation, solvers and optimisers that
+require flat vectors of parameters. Importantly it's also fast and type-stable.
 
 
-# Why?
+Flatten.jl uses [MetaField.jl](https://github.com/rafaqz/MetaFields.jl) to provide
+`@flattenable` macro to define which struct fields are to be flattened. It also
+provides `metaflatten()` to flatten any other metafield into the same sized
+vector as flatten. This can be useful for attaching Bayesian priors or optional
+units to each field, or comparing parameeters to their label. `nameflatten()`
+also provides a list of fieldnames for comparison.
 
-Let's say you have a function that takes structured data (i.e. data defined by a
-Julia type). You may want to interface with external tools, like optimization
-solvers, which expect to operate only on flat vectors of numbers. Rather than
-writing code yourself to pack or unpack your particular data into vectors, you
-can just use Flatten.jl to automatically handle all the conversions.
+It adds optional support for Unitful.jl units: they are stripped from the
+vector, and added back on reconstruction. 
 
-# Is this a good idea?
 
-Uh...I'm not sure. Possibly not. Use at your own risk. 
+This package was originally written by Robin Deits (@rdeits). The current form
+owes much to discussions and ideas from Jan Weidner (@jw3126) and Robin Deits. 
 
-## Example
+
+## Examples
 
 Let's define a data type:
 
@@ -58,7 +45,7 @@ Now we can flatten this data type into a tuple:
 
 ```julia
 julia> flatten(Tuple, f)
-(1,2,3)
+(1, 2, 3)
 ```
 
 or a vector:
@@ -71,27 +58,36 @@ julia> flatten(Vector, f)
  3
 ```
 
-We can also unflatten the data to recover the original structure:
+We can also reconstruct the data to recover the original structure.
+`construct()` rebuilds from a type and tuple containing values for every field.
 
 ```julia
 julia> construct(Foo{Int64}, (1,2,3))
 Foo{Int64}(1,2,3)
 ```
 
-Things start getting more magical when we introduce nested types:
+`reconstruct()` rebuilds from an object and a partial tuple or vector, useful
+when some fields have been deactivated with the @flattenable macro.
 
+```julia
+julia> construct(foo, (1, 2, 3))
+Foo{Int64}(1, 2, 3)
 ```
-julia> type Nested{T1, T2}
-           f::Foo{T1}
-           b::T2
-           c::T2
-       end
+
+Nested types work too:
+
+```julia
+type Nested{T1, T2}
+    f::Foo{T1}
+    b::T2
+    c::T2
+end
 
 julia> n = Nested(Foo(1,2,3), 4.0, 5.0)
 Nested{Int64,Float64}(Foo{Int64}(1,2,3),4.0,5.0)
 
 julia> flatten(Tuple, n)
-(1,2,3,4.0,5.0)
+(1, 2, 3, 4.0, 5.0)
 
 julia> flatten(Vector, n)
 5-element Array{Float64,1}:
@@ -100,63 +96,63 @@ julia> flatten(Vector, n)
  3.0
  4.0
  5.0
+
+julia> construct(Nested{Int64,Int64}, (1, 2, 3, 4, 5))
+
+Nested{Int64,Int64}(Foo{Int64}(1, 2, 3), 4, 5)
 ```
 
-Note that to_vector has automatically promoted all elements to `Float64`, since the original type had a mixture of `Float64` and `Int64`.
+Fields can be excluded from flattening with the `flattenable(struct, field)` method,
+easily defined using @flattenable on a struct.
 
-We can also recover nested types from flat data:
 
 ```julia
- julia> construct(Nested{Int64,Int64}, (1,2,3,4,5))
-Nested{Int64,Int64}(Foo{Int64}(1,2,3),4,5)
-```
+using Metafields
+using Flatten 
+import Flatten: flattenable
 
-Tuples of nested types work too:
+@metafield foobar :nobar
 
-```julia
-julia> flatten(Tuple, (Nested(Foo(1,2,3),4,5), Nested(Foo(6,7,8),9,10)))
-(1,2,3,4,5,6,7,8,9,10)
-
-julia> construct(Tuple{Nested{Int64,Int64}, Nested{Int64,Int64}}, (1,2,3,4,5,6,7,8,9,10))
-(Nested{Int64,Int64}(Foo{Int64}(1,2,3),4,5),Nested{Int64,Int64}(Foo{Int64}(6,7,8),9,10))
-```
-
-With this fork you can also exclude fields. The magic gets almost incomprehensible at this point. 
-
-```
-using Flattenable
-import Flattenable: flattenable
-type Foo{T}
-   a::T
-   b::T
-   c::T
+@flattenable @foobar struct Partial{T}
+    a::T | :foo | Flat()
+    b::T | :foo | Flat()
+    c::T | :foo | NotFlat()
 end
 
-@flattenable struct Partial{T1, T2}
-           f::Foo{T1} | true
-           b::T2      | true
-           c::T2      | false
-       end
+@flattenable @foobar struct NestedPartial{P,T}
+    np::P | :bar | Flat()
+    nb::T | :bar | Flat()
+    nc::T | :bar | NotFlat()
+end
 
-# This must be declared *after* all flattenable macros have run:
-using Flatten 
+julia> partial = Partial(1.0, 2.0, 3.0)                                      
+Partial{Float64}(1.0, 2.0, 3.0)                                              
+                                                                             
+julia> nestedpartial = NestedPartial(Partial(1.0, 2.0, 3.0), 4, 5)           
+NestedPartial{Partial{Float64},Int64}(Partial{Float64}(1.0, 2.0, 3.0), 4, 5) 
 
-julia> 
-n = Partial(Foo(1,2,3), 4.0, 5.0)
-Partial{Int64,Float64}(Foo{Int64}(1, 2,3),4.0,5.0)
+julia> flatten(Tuple, nestedpartial)
+(1.0, 2.0, 4)
 
-julia> flatten(Tuple, n)
-(1,2,3,4.0)
-
-julia> flatten(Vector, n)
+julia> flatten(Vector, nestedpartial)
 5-element Array{Float64,1}:
  1.0
  2.0
- 3.0
  4.0
 ```
 
+We can also flatten the @foobar metafield defined above:
 
-# How? 
+```julia
+julia> metaflatten(typeof(partial), foobar) 
+(:foo, :foo)
 
-Flatten.jl uses Julia's [generated functions](http://docs.julialang.org/en/release-0.4/manual/metaprogramming/#generated-functions) to generate efficient code for your particular data types, which can be 10 to 100 times faster than naively packing and unpacking data. You can look at the generated expressions for a particular type:
+julia> metaflatten(nestedpartial, foobar)
+(:foo, :foo, :bar)
+```
+
+And get the fieldnames flattened as well:
+```julia
+julia> nameflatten(nestedpartial)                                            
+(:a, :b, :nb) 
+```
