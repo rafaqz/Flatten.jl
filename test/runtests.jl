@@ -60,12 +60,12 @@ end
 
 # Partial fields with @flattenable
 partial = Partial(1.0, 2.0, 3.0)
-nestedpartial = NestedPartial(Partial(1.0, 2.0, 3.0), 4.0, 5.0) 
+nestedpartial = NestedPartial(Partial(1.0, 2.0, 3.0), 4, 5) 
 @test flatten(Vector, nestedpartial) == [1.0, 2.0, 4.0]
-@test flatten(Tuple, nestedpartial) == (1.0, 2.0, 4.0)
+@test flatten(Tuple, nestedpartial) === (1.0, 2.0, 4)
 @test flatten(Vector, reconstruct(nestedpartial, flatten(Vector, nestedpartial))) == flatten(Vector, nestedpartial)
 @test flatten(Tuple, reconstruct(nestedpartial, flatten(Tuple, nestedpartial))) == flatten(Tuple, nestedpartial)
-@test metaflatten(partial, foobar) == (:foo, :foo)
+@test metaflatten(Tuple, typeof(partial), foobar) == (:foo, :foo)
 @test metaflatten(nestedpartial, foobar) == (:foo, :foo, :bar)
 
 @flattenable @foobar struct Partial{T}
@@ -114,9 +114,9 @@ wrapped_distance = wrap(distance, Point)
 @test metaflatten(partial, foobar) == (:foo,)
 @test metaflatten(nestedpartial, foobar) == (:foo, :foo)
 
-@test labelflatten(foo) == (:a, :b, :c)
-@test labelflatten(nested) == (:a, :b, :c, :nb, :nc)
-@test labelflatten(nestedpartial) == (:c, :nc)
+@test nameflatten(foo) == (:a, :b, :c)
+@test nameflatten(nested) == (:a, :b, :c, :nb, :nc)
+@test nameflatten(nestedpartial) == (:c, :nc)
 
 
 

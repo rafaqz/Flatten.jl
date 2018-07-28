@@ -5,7 +5,7 @@ module Flatten
 using MetaFields, Requires
 using Base: tail
 
-export @flattenable, flattenable, Flat, NotFlat, flatten, construct, reconstruct, wrap, labelflatten, metaflatten
+export @flattenable, flattenable, Flat, NotFlat, flatten, construct, reconstruct, wrap, nameflatten, metaflatten
 
 @metafield flattenable Flat()
 
@@ -53,6 +53,7 @@ end
 @generated function flatten(::Type{V}, T) where V <: AbstractVector
     :(V([$(flatten_inner(T))...]))
 end
+flatten(T) = flatten(Tuple, T)
 
 
 type Counter
@@ -178,19 +179,24 @@ _metaflatten(::Type{T}, P, fname) where T <: AbstractArray = error("Cannot flatt
 metafield_get(P, fname) = Expr(:tuple, Expr(:call, :metafield, P, Expr(:curly, :Val, QuoteNode(fname))))
 
 metaflatten_inner(::Type{T}) where T = _metaflatten(T, :T, :unnamed)
-@generated function metaflatten(::Type{T}, metafield) where T
+@generated function metaflatten(::Type{V}, ::Type{T}, metafield) where {V <: Tuple,T}
     metaflatten_inner(T)
 end
+@generated function metaflatten(::Type{V}, ::Type{T}, metafield) where {V <: AbstractVector,T}
+    :(V([$(metaflatten_inner(T))...]))
+end
+metaflatten(::Type{V}, ::T, metafield) where {V,T} = metaflatten(V, T, metafield)
+metaflatten(::Type{T}, metafield) where T = metaflatten(Tuple, T, metafield)
 metaflatten(::T, metafield) where T = metaflatten(T, metafield)
 
 
-_labelflatten(T, fname) = begin
+_nameflatten(T, fname) = begin
     expressions = Expr(:tuple)
     subfieldnames = fieldnames(T)
     for (i, subfieldname) in enumerate(subfieldnames)
         field_expr = :(
             if flattenable($T, $(Expr(:curly, :Val, QuoteNode(subfieldname)))) == Flat()
-                $(_labelflatten(fieldtype(T, i), subfieldname))
+                $(_nameflatten(fieldtype(T, i), subfieldname))
             else
                 ()
             end...
@@ -199,26 +205,30 @@ _labelflatten(T, fname) = begin
     end
     expressions
 end
-_labelflatten(::Type{T}, fname) where T <: Tuple = begin
+_nameflatten(::Type{T}, fname) where T <: Tuple = begin
     expressions = Expr(:tuple)
     for i in 1:length(T.types)
-        field_expr = _labelflatten(fieldtype(T, i), Expr(:ref, fname, i))
+        field_expr = _nameflatten(fieldtype(T, i), Expr(:ref, fname, i))
         push!(expressions.args, Expr(:..., field_expr))
     end
     expressions
 end
-_labelflatten(::Type{Any}, fname) = label_get(fname)
-_labelflatten(::Type{T}, fname) where T <: Number = label_get(fname)
-_labelflatten(::Type{T}, fname) where T <: AbstractArray = error("Cannot flatten variable-length objects like arrays. Replace any arrays with tuples if possible.")
+_nameflatten(::Type{Any}, fname) = name_get(fname)
+_nameflatten(::Type{T}, fname) where T <: Number = name_get(fname)
+_nameflatten(::Type{T}, fname) where T <: AbstractArray = error("Cannot flatten variable-length objects like arrays. Replace any arrays with tuples if possible.")
 
-label_get(fname)= Expr(:tuple, QuoteNode(fname))
+name_get(fname)= Expr(:tuple, QuoteNode(fname))
 
-labelflatten_inner(::Type{T}) where T = _labelflatten(T, :unnamed)
+nameflatten_inner(::Type{T}) where T = _nameflatten(T, :unnamed)
 
-@generated function labelflatten(::Type{T}) where T
-    labelflatten_inner(T)
+@generated function nameflatten(::Type{V}, ::Type{T}) where {V <: Tuple,T}
+    nameflatten_inner(T)
 end
-labelflatten(::T) where T = labelflatten(T)
-
+@generated function nameflatten(::Type{V}, ::Type{T}) where {V <: AbstractVector,T}
+    :(V([$(nameflatten_inner(T))...]))
+end
+nameflatten(::Type{V}, ::T) where {V,T} = nameflatten(V, T)
+nameflatten(::Type{T}) where T = nameflatten(Tuple, T)
+nameflatten(::T) where T = nameflatten(T)
 
 end # module
