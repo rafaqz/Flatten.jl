@@ -19,8 +19,8 @@ and `fielparenttype_meta` provide lists of fieldnames and types that may be usef
 tables. Any user-defined funciton of the form `func(::T, ::Type{Val{FN}}) = ` can be used in `metaflatten`,
 where T is the struct type and FN is the fieldname symbol.
 
-Flatten.jl also has optional support for Unitful.jl units: they are stripped from the
-vector, and added back on reconstruction if `using Unitful` has been called.
+Flatten.jl also has support for Unitful.jl units: they are stripped from the
+vector, and added back on reconstruction.
 
 
 This basis of this package was originally written by Robin Deits (@rdeits). The current form
