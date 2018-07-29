@@ -71,8 +71,11 @@ nestedpartial = NestedPartial(Partial(1.0, 2.0, 3.0), 4, 5)
 @test flatten(Tuple, nestedpartial) === (1.0, 2.0, 4)
 @test flatten(Vector, reconstruct(nestedpartial, flatten(Vector, nestedpartial))) == flatten(Vector, nestedpartial)
 @test flatten(Tuple, reconstruct(nestedpartial, flatten(Tuple, nestedpartial))) == flatten(Tuple, nestedpartial)
-@test metaflatten(Tuple, typeof(partial), foobar) == (:foo, :foo)
+@test metaflatten(typeof(partial), foobar) == (:foo, :foo)
 @test metaflatten(nestedpartial, foobar) == (:foo, :foo, :bar)
+@test metaflatten((nestedpartial, partial), foobar) == (:foo, :foo, :bar, :foo, :foo)
+@test metaflatten(Tuple, (nestedpartial, partial), foobar) == (:foo, :foo, :bar, :foo, :foo)
+@test metaflatten(Vector, (nestedpartial, partial), foobar) == [:foo, :foo, :bar, :foo, :foo]
 
 @flattenable @foobar struct Partial{T}
     a::T | :bar | NotFlat()
@@ -124,6 +127,27 @@ wrapped_distance = wrap(distance, Point)
 @test metaflatten(nested, fieldname_meta) == (:a, :b, :c, :nb, :nc)
 @test metaflatten(nestedpartial, fieldname_meta) == (:c, :nc)
 
+# In another module
+module TestModule
+
+using Flatten
+import Flatten.flattenable
+
+export TestStruct
+
+@flattenable struct TestStruct{A,B}
+    a::A | Flat()
+    b::B | NotFlat()
+end
+
+TestStruct(; a = 8, b = 9.0) = TestStruct(a, b)
+
+end
+
+using TestModule
+
+@test flatten(TestStruct(1, 2)) == (1,)
+@test flatten(TestStruct()) == (8,)
 
 
 ##############################################################################

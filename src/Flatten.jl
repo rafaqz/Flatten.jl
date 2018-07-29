@@ -39,7 +39,6 @@ field_expressions(::Type{T}, path)  where T <: Tuple = begin
 end
 field_expressions(::Type{Any}, path) = Expr(:tuple, path)
 field_expressions(::Type{T}, path) where T <: Number = Expr(:tuple, path)
-field_expressions(::Type{T}, path) where T <: AbstractArray = error("Cannot flatten variable-length objects like arrays. Replace any arrays with tuples if possible.")
 @require Unitful begin
     field_expressions(::Type{T}, path) where T <: Unitful.Quantity = Expr(:tuple, Expr(:., path, QuoteNode(:val)))
 end
@@ -168,14 +167,13 @@ end
 _metaflatten(::Type{T}, P, fname) where T <: Tuple = begin
     expressions = Expr(:tuple)
     for i in 1:length(T.types)
-        field_expr = _metaflatten(fieldtype(T, i), fname)
+        field_expr = _metaflatten(fieldtype(T, i), P, fname)
         push!(expressions.args, Expr(:..., field_expr))
     end
     expressions
 end
 _metaflatten(::Type{Any}, P, fname) = func_expr(P, fname)
 _metaflatten(::Type{T}, P, fname) where T <: Number = func_expr(P, fname)
-_metaflatten(::Type{T}, P, fname) where T <: AbstractArray = error("Cannot flatten variable-length objects like arrays. Replace any arrays with tuples if possible.")
 
 func_expr(P, fname) = Expr(:tuple, Expr(:call, :func, P, Expr(:curly, :Val, QuoteNode(fname))))
 
@@ -184,7 +182,7 @@ metaflatten_inner(::Type{T}) where T = _metaflatten(T, :T, :unnamed)
     metaflatten_inner(T)
 end
 @generated function metaflatten(::Type{V}, ::Type{T}, func) where {V <: AbstractVector,T}
-    :(V([$(metaflatten_func(T))...]))
+    :(V([$(metaflatten_inner(T))...]))
 end
 metaflatten(::Type{V}, ::T, func) where {V,T} = metaflatten(V, T, func)
 metaflatten(::Type{T}, func) where T = metaflatten(Tuple, T, func)
