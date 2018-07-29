@@ -109,7 +109,7 @@ easily defined using @flattenable on a struct.
 
 
 ```julia
-using Metafields
+using MetaFields
 using Flatten 
 import Flatten: flattenable
 
