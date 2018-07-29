@@ -47,14 +47,20 @@ reconstruct(foo, [5.0, 5.0, 5.0])
 @metafield foobar :nobar
 
 @flattenable @foobar struct Partial{T}
+    " Field a"
     a::T | :foo | Flat()
+    " Field b"
     b::T | :foo | Flat()
+    " Field c"
     c::T | :foo | NotFlat()
 end
 
 @flattenable @foobar struct NestedPartial{P,T}
+    " Field np"
     np::P | :bar | Flat()
+    " Field nb"
     nb::T | :bar | Flat()
+    " Field nc"
     nc::T | :bar | NotFlat()
 end
 
@@ -114,9 +120,9 @@ wrapped_distance = wrap(distance, Point)
 @test metaflatten(partial, foobar) == (:foo,)
 @test metaflatten(nestedpartial, foobar) == (:foo, :foo)
 
-@test nameflatten(foo) == (:a, :b, :c)
-@test nameflatten(nested) == (:a, :b, :c, :nb, :nc)
-@test nameflatten(nestedpartial) == (:c, :nc)
+@test metaflatten(foo, fieldname_meta) == (:a, :b, :c)
+@test metaflatten(nested, fieldname_meta) == (:a, :b, :c, :nb, :nc)
+@test metaflatten(nestedpartial, fieldname_meta) == (:c, :nc)
 
 
 

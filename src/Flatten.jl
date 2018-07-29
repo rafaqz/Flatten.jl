@@ -5,7 +5,8 @@ module Flatten
 using MetaFields, Requires
 using Base: tail
 
-export @flattenable, flattenable, Flat, NotFlat, flatten, construct, reconstruct, wrap, nameflatten, metaflatten
+export @flattenable, flattenable, Flat, NotFlat, flatten, construct, reconstruct, wrap, 
+       metaflatten, fieldname_meta, fielddoc_meta
 
 @metafield flattenable Flat()
 
@@ -172,63 +173,23 @@ _metaflatten(::Type{T}, P, fname) where T <: Tuple = begin
     end
     expressions
 end
-_metaflatten(::Type{Any}, P, fname) = metafield_get(P, fname)
-_metaflatten(::Type{T}, P, fname) where T <: Number = metafield_get(P, fname)
+_metaflatten(::Type{Any}, P, fname) = func_expr(P, fname)
+_metaflatten(::Type{T}, P, fname) where T <: Number = func_expr(P, fname)
 _metaflatten(::Type{T}, P, fname) where T <: AbstractArray = error("Cannot flatten variable-length objects like arrays. Replace any arrays with tuples if possible.")
 
-metafield_get(P, fname) = Expr(:tuple, Expr(:call, :metafield, P, Expr(:curly, :Val, QuoteNode(fname))))
+func_expr(P, fname) = Expr(:tuple, Expr(:call, :func, P, Expr(:curly, :Val, QuoteNode(fname))))
 
 metaflatten_inner(::Type{T}) where T = _metaflatten(T, :T, :unnamed)
-@generated function metaflatten(::Type{V}, ::Type{T}, metafield) where {V <: Tuple,T}
+@generated function metaflatten(::Type{V}, ::Type{T}, func) where {V <: Tuple,T}
     metaflatten_inner(T)
 end
-@generated function metaflatten(::Type{V}, ::Type{T}, metafield) where {V <: AbstractVector,T}
-    :(V([$(metaflatten_inner(T))...]))
+@generated function metaflatten(::Type{V}, ::Type{T}, func) where {V <: AbstractVector,T}
+    :(V([$(metaflatten_func(T))...]))
 end
-metaflatten(::Type{V}, ::T, metafield) where {V,T} = metaflatten(V, T, metafield)
-metaflatten(::Type{T}, metafield) where T = metaflatten(Tuple, T, metafield)
-metaflatten(::T, metafield) where T = metaflatten(T, metafield)
+metaflatten(::Type{V}, ::T, func) where {V,T} = metaflatten(V, T, func)
+metaflatten(::Type{T}, func) where T = metaflatten(Tuple, T, func)
+metaflatten(::T, func) where T = metaflatten(T, func)
 
-
-_nameflatten(T, fname) = begin
-    expressions = Expr(:tuple)
-    subfieldnames = fieldnames(T)
-    for (i, subfieldname) in enumerate(subfieldnames)
-        field_expr = :(
-            if flattenable($T, $(Expr(:curly, :Val, QuoteNode(subfieldname)))) == Flat()
-                $(_nameflatten(fieldtype(T, i), subfieldname))
-            else
-                ()
-            end...
-        )
-        push!(expressions.args, Expr(:..., field_expr))
-    end
-    expressions
-end
-_nameflatten(::Type{T}, fname) where T <: Tuple = begin
-    expressions = Expr(:tuple)
-    for i in 1:length(T.types)
-        field_expr = _nameflatten(fieldtype(T, i), Expr(:ref, fname, i))
-        push!(expressions.args, Expr(:..., field_expr))
-    end
-    expressions
-end
-_nameflatten(::Type{Any}, fname) = name_get(fname)
-_nameflatten(::Type{T}, fname) where T <: Number = name_get(fname)
-_nameflatten(::Type{T}, fname) where T <: AbstractArray = error("Cannot flatten variable-length objects like arrays. Replace any arrays with tuples if possible.")
-
-name_get(fname)= Expr(:tuple, QuoteNode(fname))
-
-nameflatten_inner(::Type{T}) where T = _nameflatten(T, :unnamed)
-
-@generated function nameflatten(::Type{V}, ::Type{T}) where {V <: Tuple,T}
-    nameflatten_inner(T)
-end
-@generated function nameflatten(::Type{V}, ::Type{T}) where {V <: AbstractVector,T}
-    :(V([$(nameflatten_inner(T))...]))
-end
-nameflatten(::Type{V}, ::T) where {V,T} = nameflatten(V, T)
-nameflatten(::Type{T}) where T = nameflatten(Tuple, T)
-nameflatten(::T) where T = nameflatten(T)
+fieldname_meta(T, ::Type{Val{N}}) where N = N
 
 end # module

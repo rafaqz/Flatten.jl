@@ -151,8 +151,8 @@ julia> metaflatten(nestedpartial, foobar)
 (:foo, :foo, :bar)
 ```
 
-And get the fieldnames flattened as well:
+And flatten the fieldnames by passing in the fieldname_meta function:
 ```julia
-julia> nameflatten(nestedpartial)                                            
+julia> metaflatten(nestedpartial, fieldname_meta)                                            
 (:a, :b, :nb) 
 ```
