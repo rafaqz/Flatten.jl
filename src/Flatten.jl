@@ -61,7 +61,7 @@ type Counter
 end
 
 _construct(T, counter) = begin
-    expr = Expr(:call, T)
+    expr = Expr(:call, Expr(:., Expr(:., T, QuoteNode(:name)), QuoteNode(:wrapper)))
     for subtype in T.types
         push!(expr.args, _construct(subtype, counter))
     end
@@ -78,7 +78,7 @@ _construct(T::TypeVar, counter) = construct_element(counter)
 _construct(::Type{Any}, counter) = construct_element(counter)
 _construct(::Type{T}, counter) where T <: Number = construct_element(counter)
 _construct(::Type{T}, counter) where T <: Unitful.Quantity =
-    Expr(:call, T, construct_element(counter))
+    :($(construct_element(counter)) * Unitful.unit($T))
 
 function construct_element(counter)
     expr = Expr(:ref, :data, counter.value)
@@ -94,7 +94,7 @@ end
 
 
 _reconstruct(T, path) = begin
-    expr = Expr(:call, T)
+    expr = Expr(:call, Expr(:., Expr(:., T, QuoteNode(:name)), QuoteNode(:wrapper)))
     subfieldnames = fieldnames(T)
     for (i, subtype) in enumerate(T.types)
         field = quote
@@ -118,9 +118,8 @@ end
 _reconstruct(T::TypeVar, path) = element()
 _reconstruct(::Type{Any}, path) = element()
 _reconstruct(::Type{T}, path) where T <: Number = element()
-
 _reconstruct(::Type{T}, path) where T <: Unitful.Quantity =
-    Expr(:call, T, construct_element())
+    :($(element()) * Unitful.unit($T))
 
 element() = quote
         n += 1
