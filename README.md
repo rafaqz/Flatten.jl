@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/rafaqz/Flatten.jl.svg?branch=master)](https://travis-ci.org/rafaqz/Flatten.jl)
 [![Build status](https://ci.appveyor.com/api/projects/status/dpf055yo50y21g1v?svg=true)](https://ci.appveyor.com/project/rafaqz/flatten-jl)
-[![codecov.io](http://codecov.io/github/rafaqz/Cellular.jl/coverage.svg?branch=master)](http://codecov.io/github/rafaqz/Cellular.jl?branch=master)
+[![codecov.io](http://codecov.io/github/rafaqz/Flatten.jl/coverage.svg?branch=master)](http://codecov.io/github/rafaqz/Flatten.jl?branch=master)
 
 Flatten.jl converts data between nested and flat structures, using `flatten()`
 and `reconstruct()` functions. This facilitates building modular, compostable code
@@ -12,16 +12,18 @@ require flat vectors of parameters. Importantly it's also fast and type-stable.
 
 Flatten.jl uses [MetaField.jl](https://github.com/rafaqz/MetaFields.jl) to provide
 `@flattenable` macro to define which struct fields are to be flattened. It also
-provides `metaflatten()` to flatten any other metafield into the same sized
-vector as flatten. This can be useful for attaching Bayesian priors or optional
-units to each field, or comparing parameeters to their label. `nameflatten()`
-also provides a list of fieldnames for comparison.
+provides `metaflatten()` to flatten any other MetaFiels.jl metafields into the same sized
+vector as `flatten()`. This can be useful for attaching Bayesian priors or optional
+units to each field. Pseudo-metafileds `fieldname_meta`, `fieldparent_meta`, `fieltype_meta`
+and `fielparenttype_meta` provide lists of fieldnames and types that may be useful for building parameter display
+tables. Any user-defined funciton of the form `func(::T, ::Type{Val{FN}}) = ` can be used in `metaflatten`,
+where T is the struct type and FN is the fieldname symbol.
 
-It adds optional support for Unitful.jl units: they are stripped from the
-vector, and added back on reconstruction. 
+Flatten.jl also has optional support for Unitful.jl units: they are stripped from the
+vector, and added back on reconstruction if `using Unitful` has been called.
 
 
-This package was originally written by Robin Deits (@rdeits). The current form
+This basis of this package was originally written by Robin Deits (@rdeits). The current form
 owes much to discussions and ideas from Jan Weidner (@jw3126) and Robin Deits. 
 
 
@@ -107,7 +109,7 @@ easily defined using @flattenable on a struct.
 
 
 ```julia
-using Metafields
+using MetaFields
 using Flatten 
 import Flatten: flattenable
 
