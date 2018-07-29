@@ -2,11 +2,11 @@ __precompile__()
 
 module Flatten
 
-using MetaFields, Requires
+using MetaFields, Unitful
 using Base: tail
 
 export @flattenable, flattenable, Flat, NotFlat, flatten, construct, reconstruct, wrap, 
-       metaflatten, fieldname_meta, fielddoc_meta
+       metaflatten, fieldname_meta, fieldparent_meta, fieldtype_meta, fieldparenttype_meta
 
 @metafield flattenable Flat()
 
@@ -39,9 +39,7 @@ field_expressions(::Type{T}, path)  where T <: Tuple = begin
 end
 field_expressions(::Type{Any}, path) = Expr(:tuple, path)
 field_expressions(::Type{T}, path) where T <: Number = Expr(:tuple, path)
-@require Unitful begin
-    field_expressions(::Type{T}, path) where T <: Unitful.Quantity = Expr(:tuple, Expr(:., path, QuoteNode(:val)))
-end
+field_expressions(::Type{T}, path) where T <: Unitful.Quantity = Expr(:tuple, Expr(:., path, QuoteNode(:val)))
 
 function flatten_inner(T)
     field_expressions(T, :T)
@@ -79,10 +77,8 @@ end
 _construct(T::TypeVar, counter) = construct_element(counter)
 _construct(::Type{Any}, counter) = construct_element(counter)
 _construct(::Type{T}, counter) where T <: Number = construct_element(counter)
-@require Unitful begin
-    _construct(::Type{T}, counter) where T <: Unitful.Quantity =
-        Expr(:call, T, construct_element(counter))
-end
+_construct(::Type{T}, counter) where T <: Unitful.Quantity =
+    Expr(:call, T, construct_element(counter))
 
 function construct_element(counter)
     expr = Expr(:ref, :data, counter.value)
@@ -123,10 +119,8 @@ _reconstruct(T::TypeVar, path) = element()
 _reconstruct(::Type{Any}, path) = element()
 _reconstruct(::Type{T}, path) where T <: Number = element()
 
-@require Unitful begin
-    _reconstruct(::Type{T}, path) where T <: Unitful.Quantity =
-        Expr(:call, T, construct_element())
-end
+_reconstruct(::Type{T}, path) where T <: Unitful.Quantity =
+    Expr(:call, T, construct_element())
 
 element() = quote
         n += 1
@@ -189,5 +183,8 @@ metaflatten(::Type{T}, func) where T = metaflatten(Tuple, T, func)
 metaflatten(::T, func) where T = metaflatten(T, func)
 
 fieldname_meta(T, ::Type{Val{N}}) where N = N
+fieldtype_meta(T, ::Type{Val{N}}) where N = fieldtype(T, N)
+fieldparent_meta(T, ::Type{Val{N}}) where N = T.name.name
+fieldparenttype_meta(T, ::Type{Val{N}}) where N = T
 
 end # module

@@ -76,6 +76,10 @@ nestedpartial = NestedPartial(Partial(1.0, 2.0, 3.0), 4, 5)
 @test metaflatten((nestedpartial, partial), foobar) == (:foo, :foo, :bar, :foo, :foo)
 @test metaflatten(Tuple, (nestedpartial, partial), foobar) == (:foo, :foo, :bar, :foo, :foo)
 @test metaflatten(Vector, (nestedpartial, partial), foobar) == [:foo, :foo, :bar, :foo, :foo]
+@test metaflatten(Vector, (nestedpartial, partial), fieldname_meta) == [:a, :b, :nb, :a, :b]
+@test metaflatten(Vector, (nestedpartial, partial), fieldparenttype_meta) == DataType[Partial{Float64}, Partial{Float64}, NestedPartial{Partial{Float64},Int64}, Partial{Float64}, Partial{Float64}]
+@test metaflatten(Vector, (nestedpartial, partial), fieldparent_meta) == Symbol[:Partial, :Partial, :NestedPartial, :Partial, :Partial]
+@test metaflatten(Vector, (nestedpartial, partial), fieldtype_meta) == [Float64, Float64, Int64, Float64, Float64]
 
 @flattenable @foobar struct Partial{T}
     a::T | :bar | NotFlat()
