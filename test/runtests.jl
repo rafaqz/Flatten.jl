@@ -1,13 +1,14 @@
+using Revise
 using Flatten, BenchmarkTools, MetaFields
 import Flatten: flattenable
 
-type Foo{T}
+struct Foo{T}
     a::T
     b::T
     c::T
 end
 
-type Nested{T1, T2}
+struct Nested{T1, T2}
     nf::Foo{T1}
     nb::T2
     nc::T2
@@ -20,6 +21,8 @@ using Base.Test
 foo = Foo(1.0, 2.0, 3.0)
 nested = Nested(Foo(1,2,3), 4.0, 5.0)
 
+flatten(Tuple, foo)
+
 @test flatten(Vector, Foo(1,2,3)) == Int[1,2,3]
 @test typeof(flatten(Vector, Foo(1,2,3))) == Array{Int, 1}
 @test flatten(Tuple, Nested(Foo(1,2,3),4,5)) == (1,2,3,4,5)
@@ -30,7 +33,9 @@ nested = Nested(Foo(1,2,3), 4.0, 5.0)
 @test flatten(Tuple, construct(Foo{Float64}, flatten(Tuple, foo))) == flatten(Tuple, foo)
 @test flatten(Vector, reconstruct(foo, flatten(Vector, foo))) == flatten(Vector, foo)
 @test flatten(Tuple, reconstruct(foo, flatten(Tuple, foo))) == flatten(Tuple, foo)
-reconstruct(foo, [5.0, 5.0, 5.0])
+
+Flatten.reconstruct_inner(typeof(foo))
+Flatten.reconstruct(nested, (1,2,3,4,5,6,7))
 
 # Test nested types and tuples
 @test flatten(Vector, (Nested(Foo(1,2,3),4.0,5.0), Nested(Foo(6,7,8), 9, 10))) == Float64[1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0,9.0,10.0]
@@ -71,10 +76,13 @@ nestedpartial = NestedPartial(Partial(1.0, 2.0, 3.0), 4, 5)
 @test flatten(Tuple, nestedpartial) === (1.0, 2.0, 4)
 # It's not clear if this should actually work or not.
 # I may just be that fields sharing a type both need to be Flat() or NotFlat()
-# And mixing is disallowed, aas dealing with the conversions will be difficult.
+# And mixing is disallowed, as dealing with the conversions will be difficult.
 @test_broken flatten(Vector, reconstruct(nestedpartial, flatten(Vector, nestedpartial))) == flattenable(nestedpartial)
 @test flatten(Tuple, reconstruct(nestedpartial, flatten(Tuple, nestedpartial))) == flatten(Tuple, nestedpartial)
-@test metaflatten(typeof(partial), foobar) == (:foo, :foo)
+
+Flatten.metaflatten_inner(typeof(foo))
+
+@test metaflatten(partial, foobar) == (:foo, :foo)
 @test metaflatten(nestedpartial, foobar) == (:foo, :foo, :bar)
 @test metaflatten((nestedpartial, partial), foobar) == (:foo, :foo, :bar, :foo, :foo)
 @test metaflatten(Tuple, (nestedpartial, partial), foobar) == (:foo, :foo, :bar, :foo, :foo)
@@ -110,20 +118,6 @@ anypoint = AnyPoint(1,2)
 @test flatten(Tuple, anypoint) == (1,2)
 @test flatten(Tuple, construct(AnyPoint, (1,2))) == (1,2)
 @test flatten(Tuple, reconstruct(anypoint, (1,2))) == (1,2)
-
-
-# Test function wrapping
-type Point
-	x
-	y
-end
-
-function distance(p::Point)
-	sqrt(p.x^2 + p.y^2)
-end
-
-wrapped_distance = wrap(distance, Point)
-@test wrapped_distance([1,2]) == [norm([1,2])]
 
 @test metaflatten(foo, flattenable) == (Flatten.Flat(), Flatten.Flat(), Flatten.Flat())
 @test metaflatten(nested, flattenable) == (Flatten.Flat(), Flatten.Flat(), Flatten.Flat(), Flatten.Flat(), Flatten.Flat())
