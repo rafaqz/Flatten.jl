@@ -2,7 +2,7 @@ __precompile__()
 
 module Flatten
 
-using MetaFields, Unitful
+using MetaFields
 
 export @flattenable, flattenable, Flat, NotFlat, flatten, construct, reconstruct, wrap, 
        metaflatten, fieldname_meta, fieldparent_meta, fieldtype_meta, fieldparenttype_meta
@@ -16,7 +16,7 @@ flatten_all(x, field) = Flat()
 
 
 """
-Builds a list of expressions for each field of the struct. 
+Builds a list of expressions for each nested field. 
 
 Includes checks to see if each field is included, which are performed
 after the generated function, but still at compile time. 
@@ -54,8 +54,6 @@ field_expressions(::Type{T}, P, path, args...) where T <: Tuple = begin
     end
     expressions
 end
-field_expressions(::Type{T}, P, path, args...) where T <: Unitful.Quantity = 
-    field_expressions(fieldtype(T, :val), P, Expr(:., path, QuoteNode(:val)), args...)
 field_expressions(::Type{T}, P, path, val, args...) where T <: Number = Expr(:tuple, val(T, P, path)) 
 field_expressions(::Type{Any}, P, path, val, args...) = Expr(:tuple, val(Any, P, path))
 
