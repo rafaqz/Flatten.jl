@@ -8,10 +8,16 @@ struct Foo{T}
     c::T
 end
 
-struct Nested{T1, T2}
+struct Nest{T1, T2}
     nf::Foo{T1}
     nb::T2
     nc::T2
+end
+
+struct NestTuple{T1, T2, T3, T4}
+    nf::Tuple{Foo{T1},Nest{T2,T3}}
+    nb::T4
+    nc::T4
 end
 
 
@@ -19,63 +25,63 @@ using Flatten
 using Base.Test
 
 foo = Foo(1.0, 2.0, 3.0)
-nested = Nested(Foo(1,2,3), 4.0, 5.0)
-
-flatten(Tuple, foo)
+nest = Nest(Foo(1,2,3), 4.0, 5.0)
+nesttuple = NestTuple((foo, nest), 9, 10)
 
 @test flatten(Vector, Foo(1,2,3)) == Int[1,2,3]
 @test typeof(flatten(Vector, Foo(1,2,3))) == Array{Int, 1}
-@test flatten(Tuple, Nested(Foo(1,2,3),4,5)) == (1,2,3,4,5)
-@test flatten(Tuple, (Nested(Foo(1,2,3),4,5), Nested(Foo(6,7,8), 9, 10))) == (1,2,3,4,5,6,7,8,9,10)
-@test flatten(Tuple, Nested(Foo(1,2,3), (4,5), (6,7))) == (1,2,3,4,5,6,7)
+@test flatten(Tuple, Nest(Foo(1,2,3),4,5)) == (1,2,3,4,5)
+@test flatten(Tuple, (Nest(Foo(1,2,3),4,5), Nest(Foo(6,7,8), 9, 10))) == (1,2,3,4,5,6,7,8,9,10)
+@test flatten(Tuple, Nest(Foo(1,2,3), (4,5), (6,7))) == (1,2,3,4,5,6,7)
+
+# @test Flatten.flatten_inner(typeof(Nest(Foo(1,2,3), (4,5), (6,7))))
 
 @test flatten(Vector, construct(Foo{Float64}, flatten(Vector, foo))) == flatten(Vector, foo)
 @test flatten(Tuple, construct(Foo{Float64}, flatten(Tuple, foo))) == flatten(Tuple, foo)
 @test flatten(Vector, reconstruct(foo, flatten(Vector, foo))) == flatten(Vector, foo)
 @test flatten(Tuple, reconstruct(foo, flatten(Tuple, foo))) == flatten(Tuple, foo)
-
-Flatten.reconstruct_inner(typeof(foo))
-Flatten.reconstruct(nested, (1,2,3,4,5,6,7))
-
 # Test nested types and tuples
-@test flatten(Vector, (Nested(Foo(1,2,3),4.0,5.0), Nested(Foo(6,7,8), 9, 10))) == Float64[1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0,9.0,10.0]
-@test typeof(flatten(Vector, (Nested(Foo(1,2,3),4.0,5.0), Nested(Foo(6,7,8), 9, 10)))) == Array{Float64, 1}
-@test flatten(Tuple, (Nested(Foo(1,2,3),4.0,5.0), Nested(Foo(6,7,8), 9, 10))) == (1,2,3,4.0,5.0,6,7,8,9,10)
-@test flatten(Tuple, construct(Nested{Int,Float64}, flatten(Tuple, nested))) == flatten(Tuple, nested)
-@test flatten(Tuple, reconstruct(nested, flatten(Tuple, nested))) == flatten(Tuple, nested)
-@test flatten(Vector, construct(Nested{Int,Float64}, flatten(Vector, nested))) == flatten(Vector, nested)
-@test flatten(Vector, reconstruct(nested, flatten(Vector, nested))) == flatten(Vector, nested)
-@test flatten(Tuple, construct(Tuple{Nested{Int,Float64}, Nested{Int,Float64}}, flatten(Tuple, (nested, nested)))) == flatten(Tuple, (nested, nested))
-@test flatten(Tuple, reconstruct((nested, nested), flatten(Tuple, (nested, nested)))) == flatten(Tuple, (nested, nested))
+@test flatten(Vector, (Nest(Foo(1,2,3),4.0,5.0), Nest(Foo(6,7,8), 9, 10))) == Float64[1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0,9.0,10.0]
+@test typeof(flatten(Vector, (Nest(Foo(1,2,3),4.0,5.0), Nest(Foo(6,7,8), 9, 10)))) == Array{Float64, 1}
+@test flatten(Tuple, (Nest(Foo(1,2,3),4.0,5.0), Nest(Foo(6,7,8), 9, 10))) == (1,2,3,4.0,5.0,6,7,8,9,10)
+@test flatten(Tuple, construct(Nest{Int,Float64}, flatten(Tuple, nest))) == flatten(Tuple, nest)
+@test flatten(Tuple, reconstruct(nest, flatten(Tuple, nest))) == flatten(Tuple, nest)
+@test flatten(Vector, construct(Nest{Int,Float64}, flatten(Vector, nest))) == flatten(Vector, nest)
+@test flatten(Vector, reconstruct(nest, flatten(Vector, nest))) == flatten(Vector, nest)
+@test flatten(Tuple, construct(Tuple{Nest{Int,Float64}, Nest{Int,Float64}}, flatten(Tuple, (nest, nest)))) == flatten(Tuple, (nest, nest))
+@test flatten(Tuple, reconstruct((nest, nest), flatten(Tuple, (nest, nest)))) == flatten(Tuple, (nest, nest))
+
+@test flatten(Tuple, reconstruct(nesttuple, flatten(Tuple, nesttuple))) == flatten(Tuple, nesttuple)
 
 
 @metafield foobar :nobar
 
 @flattenable @foobar struct Partial{T}
     " Field a"
-    a::T | :foo | Flat()
+    a::T | :foo | Include()
     " Field b"
-    b::T | :foo | Flat()
+    b::T | :foo | Include()
     " Field c"
-    c::T | :foo | NotFlat()
+    c::T | :foo | Exclude()
 end
 
 @flattenable @foobar struct NestedPartial{P,T}
     " Field np"
-    np::P | :bar | Flat()
+    np::P | :bar | Include()
     " Field nb"
-    nb::T | :bar | Flat()
+    nb::T | :bar | Include()
     " Field nc"
-    nc::T | :bar | NotFlat()
+    nc::T | :bar | Exclude()
 end
 
 # Partial fields with @flattenable
 partial = Partial(1.0, 2.0, 3.0)
 nestedpartial = NestedPartial(Partial(1.0, 2.0, 3.0), 4, 5) 
+Flatten.flatten_inner(typeof(nestedpartial))
 @test flatten(Vector, nestedpartial) == [1.0, 2.0, 4.0]
 @test flatten(Tuple, nestedpartial) === (1.0, 2.0, 4)
 # It's not clear if this should actually work or not.
-# I may just be that fields sharing a type both need to be Flat() or NotFlat()
+# I may just be that fields sharing a type both need to be Include() or Exclude()
 # And mixing is disallowed, as dealing with the conversions will be difficult.
 @test_broken flatten(Vector, reconstruct(nestedpartial, flatten(Vector, nestedpartial))) == flattenable(nestedpartial)
 @test flatten(Tuple, reconstruct(nestedpartial, flatten(Tuple, nestedpartial))) == flatten(Tuple, nestedpartial)
@@ -93,14 +99,14 @@ Flatten.metaflatten_inner(typeof(foo))
 @test metaflatten(Vector, (nestedpartial, partial), fieldtype_meta) == [Float64, Float64, Int64, Float64, Float64]
 
 @flattenable @foobar struct Partial{T}
-    a::T | :bar | NotFlat()
-    b::T | :bar | NotFlat()
-    c::T | :foo | Flat()   
+    a::T | :bar | Exclude()
+    b::T | :bar | Exclude()
+    c::T | :foo | Include()   
 end
 
 @flattenable @foobar struct NestedPartial{P,T}
-    nb::T | :bar | NotFlat() 
-    nc::T | :foo | Flat()    
+    nb::T | :bar | Exclude() 
+    nc::T | :foo | Include()    
 end
 
 # Test with changed fields
@@ -119,13 +125,13 @@ anypoint = AnyPoint(1,2)
 @test flatten(Tuple, construct(AnyPoint, (1,2))) == (1,2)
 @test flatten(Tuple, reconstruct(anypoint, (1,2))) == (1,2)
 
-@test metaflatten(foo, flattenable) == (Flatten.Flat(), Flatten.Flat(), Flatten.Flat())
-@test metaflatten(nested, flattenable) == (Flatten.Flat(), Flatten.Flat(), Flatten.Flat(), Flatten.Flat(), Flatten.Flat())
+@test metaflatten(foo, flattenable) == (Flatten.Include(), Flatten.Include(), Flatten.Include())
+@test metaflatten(nest, flattenable) == (Flatten.Include(), Flatten.Include(), Flatten.Include(), Flatten.Include(), Flatten.Include())
 @test metaflatten(partial, foobar) == (:foo,)
 @test metaflatten(nestedpartial, foobar) == (:foo, :foo)
 
 @test metaflatten(foo, fieldname_meta) == (:a, :b, :c)
-@test metaflatten(nested, fieldname_meta) == (:a, :b, :c, :nb, :nc)
+@test metaflatten(nest, fieldname_meta) == (:a, :b, :c, :nb, :nc)
 @test metaflatten(nestedpartial, fieldname_meta) == (:c, :nc)
 
 # In another module
@@ -137,8 +143,8 @@ import Flatten.flattenable
 export TestStruct
 
 @flattenable struct TestStruct{A,B}
-    a::A | Flat()
-    b::B | NotFlat()
+    a::A | Include()
+    b::B | Exclude()
 end
 
 TestStruct(; a = 8, b = 9.0) = TestStruct(a, b)
