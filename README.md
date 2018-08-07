@@ -4,8 +4,8 @@
 [![Build status](https://ci.appveyor.com/api/projects/status/dpf055yo50y21g1v?svg=true)](https://ci.appveyor.com/project/rafaqz/flatten-jl)
 [![codecov.io](http://codecov.io/github/rafaqz/Flatten.jl/coverage.svg?branch=master)](http://codecov.io/github/rafaqz/Flatten.jl?branch=master)
 
-Flatten.jl converts data between nested and flat structures, using `flatten()`
-and `reconstruct()` functions. This facilitates building modular, compostable code
+Flatten.jl converts data between nested and flat structures, using `flatten()`, 
+`construct` and `reconstruct()` functions. This facilitates building modular, compostable code
 while still providing access to differentiation, solvers and optimisers that
 require flat vectors of parameters. Importantly it's also fast and type-stable.
 
@@ -14,14 +14,12 @@ Flatten.jl uses [MetaField.jl](https://github.com/rafaqz/MetaFields.jl) to provi
 `@flattenable` macro to define which struct fields are to be flattened. It also
 provides `metaflatten()` to flatten any other MetaFiels.jl metafields into the same sized
 vector as `flatten()`. This can be useful for attaching Bayesian priors or optional
-units to each field. Pseudo-metafileds `fieldname_meta`, `fieldparent_meta`, `fieltype_meta`
+units to each field. Regular field metadata can also be using metaflatten: `fieldname_meta`, `fieldparent_meta`, `fieltype_meta`
 and `fielparenttype_meta` provide lists of fieldnames and types that may be useful for building parameter display
 tables. Any user-defined funciton of the form `func(::T, ::Type{Val{FN}}) = ` can be used in `metaflatten`,
 where T is the struct type and FN is the fieldname symbol.
 
-Flatten.jl also has support for Unitful.jl units: they are stripped from the
-vector, and added back on reconstruction.
-
+The AST manipulation code is abstracted in the [Nested.jl](https://github.com/rafaqz/Nested.jl) library.
 
 This basis of this package was originally written by Robin Deits (@rdeits). The current form
 owes much to discussions and ideas from Jan Weidner (@jw3126) and Robin Deits. 
