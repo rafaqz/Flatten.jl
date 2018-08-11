@@ -1,4 +1,3 @@
-using Revise
 using Flatten, BenchmarkTools, MetaFields, Unitful, Base.Test
 import Flatten: flattenable
 
