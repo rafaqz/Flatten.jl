@@ -1,5 +1,5 @@
 using Revise
-using Flatten, BenchmarkTools, MetaFields
+using Flatten, BenchmarkTools, MetaFields, Unitful, Base.Test
 import Flatten: flattenable
 
 struct Foo{T}
@@ -21,37 +21,33 @@ struct NestTuple{T1, T2, T3, T4}
 end
 
 
-using Flatten
-using Base.Test
-
 foo = Foo(1.0, 2.0, 3.0)
 nest = Nest(Foo(1,2,3), 4.0, 5.0)
 nesttuple = NestTuple((foo, nest), 9, 10)
 
+@test flatten(Tuple, Foo(1,2,3)) == (1,2,3)
 @test flatten(Vector, Foo(1,2,3)) == Int[1,2,3]
 @test typeof(flatten(Vector, Foo(1,2,3))) == Array{Int, 1}
 @test flatten(Tuple, Nest(Foo(1,2,3),4,5)) == (1,2,3,4,5)
 @test flatten(Tuple, (Nest(Foo(1,2,3),4,5), Nest(Foo(6,7,8), 9, 10))) == (1,2,3,4,5,6,7,8,9,10)
 @test flatten(Tuple, Nest(Foo(1,2,3), (4,5), (6,7))) == (1,2,3,4,5,6,7)
 
-# @test Flatten.flatten_inner(typeof(Nest(Foo(1,2,3), (4,5), (6,7))))
-
-@test flatten(Vector, construct(Foo{Float64}, flatten(Vector, foo))) == flatten(Vector, foo)
-@test flatten(Tuple, construct(Foo{Float64}, flatten(Tuple, foo))) == flatten(Tuple, foo)
-@test flatten(Vector, reconstruct(foo, flatten(Vector, foo))) == flatten(Vector, foo)
-@test flatten(Tuple, reconstruct(foo, flatten(Tuple, foo))) == flatten(Tuple, foo)
+foo2 = Foo(5.0, 6.0, 7.0)
+@test flatten(Vector, reconstruct(foo2, flatten(Vector, foo2))) == flatten(Vector, foo2)
+@test flatten(Tuple, reconstruct(foo2, flatten(Tuple, foo2))) == flatten(Tuple, foo2)
 # Test nested types and tuples
 @test flatten(Vector, (Nest(Foo(1,2,3),4.0,5.0), Nest(Foo(6,7,8), 9, 10))) == Float64[1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0,9.0,10.0]
 @test typeof(flatten(Vector, (Nest(Foo(1,2,3),4.0,5.0), Nest(Foo(6,7,8), 9, 10)))) == Array{Float64, 1}
 @test flatten(Tuple, (Nest(Foo(1,2,3),4.0,5.0), Nest(Foo(6,7,8), 9, 10))) == (1,2,3,4.0,5.0,6,7,8,9,10)
-@test flatten(Tuple, construct(Nest{Int,Float64}, flatten(Tuple, nest))) == flatten(Tuple, nest)
+
 @test flatten(Tuple, reconstruct(nest, flatten(Tuple, nest))) == flatten(Tuple, nest)
-@test flatten(Vector, construct(Nest{Int,Float64}, flatten(Vector, nest))) == flatten(Vector, nest)
 @test flatten(Vector, reconstruct(nest, flatten(Vector, nest))) == flatten(Vector, nest)
-@test flatten(Tuple, construct(Tuple{Nest{Int,Float64}, Nest{Int,Float64}}, flatten(Tuple, (nest, nest)))) == flatten(Tuple, (nest, nest))
 @test flatten(Tuple, reconstruct((nest, nest), flatten(Tuple, (nest, nest)))) == flatten(Tuple, (nest, nest))
 
 @test flatten(Tuple, reconstruct(nesttuple, flatten(Tuple, nesttuple))) == flatten(Tuple, nesttuple)
+
+@test typeof(reconstruct(foo, flatten(Tuple, foo))) <: Foo
+@test typeof(reconstruct(nest, flatten(Tuple, nest))) <: Nest
 
 
 @metafield foobar :nobar
@@ -81,12 +77,10 @@ Flatten.flatten_inner(typeof(nestedpartial))
 @test flatten(Vector, nestedpartial) == [1.0, 2.0, 4.0]
 @test flatten(Tuple, nestedpartial) === (1.0, 2.0, 4)
 # It's not clear if this should actually work or not.
-# I may just be that fields sharing a type both need to be Include() or Exclude()
-# And mixing is disallowed, as dealing with the conversions will be difficult.
+# It may just be that fields sharing a type both need to be Include() or Exclude()
+# and mixing is disallowed for Vector.
 @test_broken flatten(Vector, reconstruct(nestedpartial, flatten(Vector, nestedpartial))) == flattenable(nestedpartial)
 @test flatten(Tuple, reconstruct(nestedpartial, flatten(Tuple, nestedpartial))) == flatten(Tuple, nestedpartial)
-
-Flatten.metaflatten_inner(typeof(foo))
 
 @test metaflatten(partial, foobar) == (:foo, :foo)
 @test metaflatten(nestedpartial, foobar) == (:foo, :foo, :bar)
@@ -114,6 +108,7 @@ end
 @test flatten(Tuple, nestedpartial) == (3.0, 5.0)
 @test_broken flatten(Vector, reconstruct(nestedpartial, flatten(Vector, nestedpartial))) == flatten(Vector, nestedpartial)
 @test flatten(Tuple, reconstruct(nestedpartial, flatten(Tuple, nestedpartial))) == flatten(Tuple, nestedpartial)
+@inferred flatten(Tuple, reconstruct(nestedpartial, flatten(Tuple, nestedpartial)))
 
 # Test non-parametric types
 type AnyPoint
@@ -122,7 +117,6 @@ type AnyPoint
 end
 anypoint = AnyPoint(1,2)
 @test flatten(Tuple, anypoint) == (1,2)
-@test flatten(Tuple, construct(AnyPoint, (1,2))) == (1,2)
 @test flatten(Tuple, reconstruct(anypoint, (1,2))) == (1,2)
 
 @test metaflatten(foo, flattenable) == (Flatten.Include(), Flatten.Include(), Flatten.Include())
@@ -157,6 +151,21 @@ using TestModule
 @test flatten(TestStruct()) == (8,)
 
 
+# With units
+partialunits = Partial(1.0u"s", 2.0u"s", 3.0u"s")
+nestedunits = NestedPartial(Partial(1.0u"km", 2.0u"km", 3.0u"km"), 4.0u"g", 5.0u"g") 
+@test flatten(Vector, partialunits) == [3.0]
+@test flatten(Vector, reconstruct(partialunits, flatten(Vector, partialunits))) == flatten(Vector, partialunits)
+@test flatten(Tuple, reconstruct(partialunits, flatten(Tuple, partialunits))) == flatten(Tuple, partialunits)
+@test flatten(Vector, reconstruct(nestedunits, flatten(Vector, nestedunits))) == flatten(Vector, nestedunits)
+@test flatten(Tuple, reconstruct(nestedunits, flatten(Tuple, nestedunits))) == flatten(Tuple, nestedunits)
+@inferred flatten(Tuple, reconstruct(nestedunits, flatten(Tuple, nestedunits))) == flatten(Tuple, nestedunits)
+@test flatten(Tuple, reconstruct(nestedpartial, flatten(Tuple, nestedpartial))) == flatten(Tuple, nestedpartial)
+
+# With void
+@test flatten(Tuple, Nest(Foo(1,2,3), nothing, nothing)) == (1,2,3)
+@test flatten(Tuple, (Nest(Foo(1,2,3), nothing, nothing), Nest(Foo(nothing, nothing, nothing), 9, 10))) == (1,2,3,9,10)
+
 ##############################################################################
 # Benchmarks
 
@@ -180,7 +189,8 @@ end
 @test flatten_naive_tuple(foo) == flatten(Tuple, foo)
 
 foo = Foo(1.0, 2.0, 3.0)
-data = flatten(Vector, foo)
+datavector = flatten(Vector, foo)
+datatuple = flatten(Tuple, foo)
 
 print("flatten to vector: ")
 @btime flatten(Vector, $foo)
@@ -190,10 +200,7 @@ print("flatten to tuple: ")
 @btime flatten(Tuple, $foo)
 print("flatten to tuple naive: ")
 @btime flatten_naive_tuple($foo)
-
-print("construct vector: ")
-@btime construct(Foo{Float64}, $data)
 print("reconstruct vector: ")
-@btime reconstruct($foo, $data)
-print("reconstruc vector naive: ")
-@btime construct_vector_naive(Foo{Float64}, $data)
+@btime reconstruct($foo, $datavector)
+print("reconstruct vector naive: ")
+@btime construct_vector_naive(Foo{Float64}, $datavector)
