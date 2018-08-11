@@ -1,4 +1,4 @@
-# __precompile__()
+__precompile__()
 
 module Flatten
 
@@ -64,7 +64,7 @@ reconstruct_expr(T, path, fname) = quote
         val, n = reconstruct(getfield($path, $(QuoteNode(fname))), data, n)
         val
     else
-        getfield($path, $(QuoteNode(fname)))
+        (getfield($path, $(QuoteNode(fname))),)
     end
 end
 
