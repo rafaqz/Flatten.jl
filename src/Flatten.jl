@@ -4,7 +4,7 @@ module Flatten
 
 using MetaFields, Nested, Unitful
 
-export @flattenable, flattenable, Include, Exclude, flatten, construct, reconstruct, 
+export @flattenable, flattenable, Include, Exclude, flatten, construct, reconstruct, update!, 
        metaflatten, fieldname_meta, fieldparent_meta, fieldtype_meta, fieldparenttype_meta
 
 struct Include end
@@ -40,7 +40,6 @@ metaflatten_expr(T, path, fname) = quote
         ()
     end
 end
-
 metaflatten_inner(T::Type) = nested(T, :t, metaflatten_expr)
 
 " Metaflattening. Flattens data attached to a field by methods of a passed in function"
@@ -79,5 +78,28 @@ reconstruct(::Void, data, n) = (nothing,), n
 reconstruct(::Number, data, n) = (data[n],), n + 1 
 reconstruct(::T, data, n) where T <: Unitful.Quantity = (unit(T) * data[n],), n + 1
 @generated reconstruct(t, data, n) = reconstruct_inner(t)
+
+
+update_expr(T, path, fname) = quote
+    if flattenable($T, Val{$(QuoteNode(fname))}) == Include()
+        val, n = update!(getfield($path, $(QuoteNode(fname))), data, n)
+        setfield!($path, $(QuoteNode(fname)), val[1]) 
+        ()
+    end
+end
+
+update_handler(T, expressions) = :($(Expr(:tuple, :t, expressions...)), n)
+update_handler(T::Type{<:Tuple}, expressions) = :(($(Expr(:tuple, expressions...)),), n)
+update_inner(::Type{T}) where T = nested(T, :t, update_expr, update_handler)
+
+" Update a mutable object with partial Tuple or Vector data"
+update!(t, data) = begin
+    update!(t, data, 1)
+    t
+end
+update!(::Void, data, n) = (nothing,), n
+update!(::Number, data, n) = (data[n],), n + 1 
+update!(::T, data, n) where T <: Unitful.Quantity = (unit(T) * data[n],), n + 1
+@generated update!(t, data, n) = update_inner(t)
 
 end # module

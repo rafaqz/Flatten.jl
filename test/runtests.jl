@@ -19,35 +19,54 @@ struct NestTuple{T1, T2, T3, T4}
     nc::T4
 end
 
+mutable struct MuFoo{T}
+    a::T
+    b::T
+    c::T
+end
+
+mutable struct MuNest{T1, T2}
+    nf::MuFoo{T1}
+    nb::T2
+    nc::T2
+end
+
 
 foo = Foo(1.0, 2.0, 3.0)
 nest = Nest(Foo(1,2,3), 4.0, 5.0)
 nesttuple = NestTuple((foo, nest), 9, 10)
 
-@test flatten(Tuple, Foo(1,2,3)) == (1,2,3)
 @test flatten(Vector, Foo(1,2,3)) == Int[1,2,3]
 @test typeof(flatten(Vector, Foo(1,2,3))) == Array{Int, 1}
+@test flatten(Tuple, Foo(1,2,3)) == (1,2,3)
 @test flatten(Tuple, Nest(Foo(1,2,3),4,5)) == (1,2,3,4,5)
 @test flatten(Tuple, (Nest(Foo(1,2,3),4,5), Nest(Foo(6,7,8), 9, 10))) == (1,2,3,4,5,6,7,8,9,10)
 @test flatten(Tuple, Nest(Foo(1,2,3), (4,5), (6,7))) == (1,2,3,4,5,6,7)
 
-foo2 = Foo(5.0, 6.0, 7.0)
-@test flatten(Vector, reconstruct(foo2, flatten(Vector, foo2))) == flatten(Vector, foo2)
-@test flatten(Tuple, reconstruct(foo2, flatten(Tuple, foo2))) == flatten(Tuple, foo2)
+@test flatten(Vector, reconstruct(foo, flatten(Vector, foo))) == flatten(Vector, foo)
+@test flatten(Tuple, reconstruct(foo, flatten(Tuple, foo))) == flatten(Tuple, foo)
+
+mufoo = MuFoo(1.0, 2.0, 3.0)
+@test flatten(Vector, update!(mufoo, flatten(Vector, mufoo) .* 7)) == [7.0, 14.0, 21.0]
+mufoo = MuFoo(1.0, 2.0, 3.0)
+@test flatten(Tuple, update!(mufoo, flatten(Tuple, mufoo) .* 7)) == (7.0, 14.0, 21.0)
+munest = MuNest(MuFoo(1,2,3), 4.0, 5.0)
+@test flatten(update!(munest, flatten(munest) .* 7)) == (7.0, 14.0, 21.0, 28.0, 35.0)
+
 # Test nested types and tuples
 @test flatten(Vector, (Nest(Foo(1,2,3),4.0,5.0), Nest(Foo(6,7,8), 9, 10))) == Float64[1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0,9.0,10.0]
 @test typeof(flatten(Vector, (Nest(Foo(1,2,3),4.0,5.0), Nest(Foo(6,7,8), 9, 10)))) == Array{Float64, 1}
 @test flatten(Tuple, (Nest(Foo(1,2,3),4.0,5.0), Nest(Foo(6,7,8), 9, 10))) == (1,2,3,4.0,5.0,6,7,8,9,10)
-
 @test flatten(Tuple, reconstruct(nest, flatten(Tuple, nest))) == flatten(Tuple, nest)
 @test flatten(Vector, reconstruct(nest, flatten(Vector, nest))) == flatten(Vector, nest)
 @test flatten(Tuple, reconstruct((nest, nest), flatten(Tuple, (nest, nest)))) == flatten(Tuple, (nest, nest))
-
 @test flatten(Tuple, reconstruct(nesttuple, flatten(Tuple, nesttuple))) == flatten(Tuple, nesttuple)
 
 @test typeof(reconstruct(foo, flatten(Tuple, foo))) <: Foo
 @test typeof(reconstruct(nest, flatten(Tuple, nest))) <: Nest
 
+
+# Partial fields with @flattenable
 
 @metafield foobar :nobar
 
@@ -69,7 +88,6 @@ end
     nc::T | :bar | Exclude()
 end
 
-# Partial fields with @flattenable
 partial = Partial(1.0, 2.0, 3.0)
 nestedpartial = NestedPartial(Partial(1.0, 2.0, 3.0), 4, 5) 
 Flatten.flatten_inner(typeof(nestedpartial))
@@ -81,6 +99,8 @@ Flatten.flatten_inner(typeof(nestedpartial))
 @test_broken flatten(Vector, reconstruct(nestedpartial, flatten(Vector, nestedpartial))) == flattenable(nestedpartial)
 @test flatten(Tuple, reconstruct(nestedpartial, flatten(Tuple, nestedpartial))) == flatten(Tuple, nestedpartial)
 
+
+# Metaflattening
 @test metaflatten(partial, foobar) == (:foo, :foo)
 @test metaflatten(nestedpartial, foobar) == (:foo, :foo, :bar)
 @test metaflatten((nestedpartial, partial), foobar) == (:foo, :foo, :bar, :foo, :foo)
@@ -91,6 +111,8 @@ Flatten.flatten_inner(typeof(nestedpartial))
 @test metaflatten(Vector, (nestedpartial, partial), fieldparent_meta) == Symbol[:Partial, :Partial, :NestedPartial, :Partial, :Partial]
 @test metaflatten(Vector, (nestedpartial, partial), fieldtype_meta) == [Float64, Float64, Int64, Float64, Float64]
 
+
+# Updating metafields updates flattened fields
 @flattenable @foobar struct Partial{T}
     a::T | :bar | Exclude()
     b::T | :bar | Exclude()
@@ -102,21 +124,11 @@ end
     nc::T | :foo | Include()    
 end
 
-# Test with changed fields
 @test flatten(Vector, nestedpartial) == [3.0, 5.0]
 @test flatten(Tuple, nestedpartial) == (3.0, 5.0)
 @test_broken flatten(Vector, reconstruct(nestedpartial, flatten(Vector, nestedpartial))) == flatten(Vector, nestedpartial)
 @test flatten(Tuple, reconstruct(nestedpartial, flatten(Tuple, nestedpartial))) == flatten(Tuple, nestedpartial)
 @inferred flatten(Tuple, reconstruct(nestedpartial, flatten(Tuple, nestedpartial)))
-
-# Test non-parametric types
-type AnyPoint
-    x
-    y
-end
-anypoint = AnyPoint(1,2)
-@test flatten(Tuple, anypoint) == (1,2)
-@test flatten(Tuple, reconstruct(anypoint, (1,2))) == (1,2)
 
 @test metaflatten(foo, flattenable) == (Flatten.Include(), Flatten.Include(), Flatten.Include())
 @test metaflatten(nest, flattenable) == (Flatten.Include(), Flatten.Include(), Flatten.Include(), Flatten.Include(), Flatten.Include())
@@ -126,6 +138,16 @@ anypoint = AnyPoint(1,2)
 @test metaflatten(foo, fieldname_meta) == (:a, :b, :c)
 @test metaflatten(nest, fieldname_meta) == (:a, :b, :c, :nb, :nc)
 @test metaflatten(nestedpartial, fieldname_meta) == (:c, :nc)
+
+
+# Test non-parametric types
+type AnyPoint
+    x
+    y
+end
+anypoint = AnyPoint(1,2)
+@test flatten(Tuple, anypoint) == (1,2)
+@test flatten(Tuple, reconstruct(anypoint, (1,2))) == (1,2)
 
 # In another module
 module TestModule
@@ -162,8 +184,10 @@ nestedunits = NestedPartial(Partial(1.0u"km", 2.0u"km", 3.0u"km"), 4.0u"g", 5.0u
 @test flatten(Tuple, reconstruct(nestedpartial, flatten(Tuple, nestedpartial))) == flatten(Tuple, nestedpartial)
 
 # With void
-@test flatten(Tuple, Nest(Foo(1,2,3), nothing, nothing)) == (1,2,3)
+nestvoid = Nest(Foo(1,2,3), nothing, nothing)
+@test flatten(Tuple, nestvoid) == (1,2,3)
 @test flatten(Tuple, (Nest(Foo(1,2,3), nothing, nothing), Nest(Foo(nothing, nothing, nothing), 9, 10))) == (1,2,3,9,10)
+@test flatten(Tuple, reconstruct(nestvoid, flatten(Tuple, nestvoid))) == flatten(Tuple, nestvoid) 
 
 ##############################################################################
 # Benchmarks
