@@ -168,7 +168,7 @@ nestvoid = Nest(Foo(1,2,3), nothing, nothing)
 # Benchmarks
 
 function flatten_naive_vector(obj)
-    v = Vector{Float64}(length(fieldnames(typeof(obj))))
+    v = Vector(undef, length(fieldnames(typeof(obj))))
     for (i, field) in enumerate(fieldnames(typeof(obj)))
         v[i] = getfield(obj, field)
     end
