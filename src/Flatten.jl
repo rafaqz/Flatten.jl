@@ -2,7 +2,7 @@ module Flatten
 
 using Tags, Nested, Unitful
 
-export @flattenable, flattenable, Include, Exclude, flatten, construct, reconstruct, retype, update!, 
+export @flattenable, @reflattenable, flattenable, Include, Exclude, flatten, construct, reconstruct, retype, update!, 
        tagflatten, fieldname_tag, fieldparent_tag, fieldtype_tag, fieldparenttype_tag
 
 struct Include end

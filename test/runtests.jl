@@ -127,14 +127,14 @@ end
 @test flatten(Tuple, reconstruct(nestedpartial, flatten(Tuple, nestedpartial))) == flatten(Tuple, nestedpartial)
 @inferred flatten(Tuple, reconstruct(nestedpartial, flatten(Tuple, nestedpartial)))
 
-@test tag(foo, flattenable) == (Flatten.Include(), Flatten.Include(), Flatten.Include())
-@test tag(nest, flattenable) == (Flatten.Include(), Flatten.Include(), Flatten.Include(), Flatten.Include(), Flatten.Include())
-@test tag(partial, foobar) == (:foo,)
-@test tag(nestedpartial, foobar) == (:foo, :foo)
+@test tagflatten(foo, flattenable) == (Flatten.Include(), Flatten.Include(), Flatten.Include())
+@test tagflatten(nest, flattenable) == (Flatten.Include(), Flatten.Include(), Flatten.Include(), Flatten.Include(), Flatten.Include())
+@test tagflatten(partial, foobar) == (:foo,)
+@test tagflatten(nestedpartial, foobar) == (:foo, :foo)
 
-@test tag(foo, fieldname_tag) == (:a, :b, :c)
-@test tag(nest, fieldname_tag) == (:a, :b, :c, :nb, :nc)
-@test tag(nestedpartial, fieldname_tag) == (:c, :nc)
+@test tagflatten(foo, fieldname_tag) == (:a, :b, :c)
+@test tagflatten(nest, fieldname_tag) == (:a, :b, :c, :nb, :nc)
+@test tagflatten(nestedpartial, fieldname_tag) == (:c, :nc)
 
 
 # Test non-parametric types
