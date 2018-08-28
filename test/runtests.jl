@@ -168,15 +168,15 @@ nestvoid = Nest(Foo(1,2,3), nothing, nothing)
 # Benchmarks
 
 function flatten_naive_vector(obj)
-    v = Vector{Float64}(length(fieldnames(obj)))
-    for (i, field) in enumerate(fieldnames(obj))
+    v = Vector{Float64}(length(fieldnames(typeof(obj))))
+    for (i, field) in enumerate(fieldnames(typeof(obj)))
         v[i] = getfield(obj, field)
     end
     v
 end
 
 function flatten_naive_tuple(obj)
-    v = (map(field -> getfield(obj, field), fieldnames(obj))...)
+    v = (map(field -> getfield(obj, field), fieldnames(typeof(obj)))...,)
 end
 
 function construct_vector_naive(T, data)
