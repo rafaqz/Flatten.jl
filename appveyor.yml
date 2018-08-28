@@ -40,8 +40,8 @@ install:
 build_script:
 # Need to convert from shallow to complete for Pkg.clone to work
   - IF EXIST .git\shallow (git fetch --unshallow)
-  - C:\projects\julia\bin\julia -e "Pkg.clone(\"https://github.com/rafaqz/MetaFields.jl.git\"); 
-      Pkg.build(\"MetaFields\")"
+  - C:\projects\julia\bin\julia -e "Pkg.clone(\"https://github.com/rafaqz/Tags.jl.git\"); 
+      Pkg.build(\"Tags\")"
   - C:\projects\julia\bin\julia -e "versioninfo();
       Pkg.clone(pwd(), \"Flatten\"); Pkg.build(\"Flatten\")"
 

@@ -10,14 +10,16 @@ while still providing access to differentiation, solvers and optimisers that
 require flat vectors of parameters. Importantly it's also fast and type-stable.
 
 
-Flatten.jl uses [MetaField.jl](https://github.com/rafaqz/MetaFields.jl) to provide
+Flatten.jl uses [Tags.jl](https://github.com/rafaqz/Tags.jl) to provide
 `@flattenable` macro to define which struct fields are to be flattened. It also
-provides `metaflatten()` to flatten any other MetaFiels.jl metafields into the same sized
+provides `tagflatten()` to flatten any other Tags.jl tag into the same sized
 vector as `flatten()`. This can be useful for attaching Bayesian priors or optional
-units to each field. Regular field metadata can also be using metaflatten: `fieldname_meta`, `fieldparent_meta`, `fieltype_meta`
-and `fielparenttype_meta` provide lists of fieldnames and types that may be useful for building parameter display
-tables. Any user-defined funciton of the form `func(::T, ::Type{Val{FN}}) = ` can be used in `metaflatten`,
+units to each field. Regular field data can also be collected with tagflatten:
+`fieldname_tag`, `fieldparent_tag`, `fieltype_tag` and `fielparenttype_tag` provide lists of fieldnames and types that may be useful for building parameter display
+tables. Any user-defined funciton of the form `func(::T, ::Type{Val{FN}}) = ` can be used in `tagflatten`,
 where T is the struct type and FN is the fieldname symbol.
+
+Flatten.jl also strips Uniful.jl units for use with numerical tools that don't handle units.
 
 The AST manipulation code is abstracted in the [Nested.jl](https://github.com/rafaqz/Nested.jl) library.
 
@@ -107,11 +109,11 @@ easily defined using @flattenable on a struct.
 
 
 ```julia
-using MetaFields
+using Tags
 using Flatten 
 import Flatten: flattenable
 
-@metafield foobar :nobar
+@tag foobar :nobar
 
 @flattenable @foobar struct Partial{T}
     a::T | :foo | Flat()
@@ -141,18 +143,18 @@ julia> flatten(Vector, nestedpartial)
  4.0
 ```
 
-We can also flatten the @foobar metafield defined above:
+We can also flatten the @foobar tag defined above:
 
 ```julia
-julia> metaflatten(typeof(partial), foobar) 
+julia> tagflatten(typeof(partial), foobar) 
 (:foo, :foo)
 
-julia> metaflatten(nestedpartial, foobar)
+julia> tagflatten(nestedpartial, foobar)
 (:foo, :foo, :bar)
 ```
 
 And flatten the fieldnames by passing in the fieldname_meta function:
 ```julia
-julia> metaflatten(nestedpartial, fieldname_meta)                                            
+julia> tagflatten(nestedpartial, fieldname_meta)                                            
 (:a, :b, :nb) 
 ```
