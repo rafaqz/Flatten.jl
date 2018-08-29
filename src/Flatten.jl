@@ -2,17 +2,14 @@ module Flatten
 
 using Tags, Nested, Unitful
 
-export @flattenable, @reflattenable, flattenable, Include, Exclude, flatten, construct, reconstruct, retype, update!, 
+export @flattenable, @reflattenable, flattenable, flatten, construct, reconstruct, retype, update!, 
        tagflatten, fieldname_tag, fieldparent_tag, fieldtype_tag, fieldparenttype_tag
 
-struct Include end
-struct Exclude end
-
-@tag flattenable Include()
+@tag flattenable true
 
 
 flatten_expr(T, path, fname) = quote
-    if flattenable($T, Val{$(QuoteNode(fname))}) == Include()
+    if flattenable($T, Val{$(QuoteNode(fname))})
         flatten(getfield($path, $(QuoteNode(fname))))
     else
         ()
@@ -31,7 +28,7 @@ flatten(x::Unitful.Quantity) = (x.val,)
 
 
 tagflatten_expr(T, path, fname) = quote
-    if flattenable($T, Val{$(QuoteNode(fname))}) == Include() 
+    if flattenable($T, Val{$(QuoteNode(fname))})
         tagflatten(getfield($path, $(QuoteNode(fname))), func, $T, Val{$(QuoteNode(fname))})
     else
         ()
@@ -55,7 +52,7 @@ fieldparenttype_tag(T, ::Type{Val{N}}) where N = T
 
 
 reconstruct_expr(T, path, fname) = quote
-    if flattenable($T, Val{$(QuoteNode(fname))}) == Include()
+    if flattenable($T, Val{$(QuoteNode(fname))})
         val, n = reconstruct(getfield($path, $(QuoteNode(fname))), data, n)
         val
     else
@@ -76,7 +73,7 @@ reconstruct(::T, data, n) where T <: Unitful.Quantity = (unit(T) * data[n],), n 
 @generated reconstruct(t, data, n) = reconstruct_inner(t)
 
 retype_expr(T, path, fname) = quote
-    if flattenable($T, Val{$(QuoteNode(fname))}) == Include()
+    if flattenable($T, Val{$(QuoteNode(fname))})
         val, n = reconstruct(getfield($path, $(QuoteNode(fname))), data, n)
         val
     else
@@ -98,7 +95,7 @@ retype(::T, data, n) where T <: Unitful.Quantity = (unit(T) * data[n],), n + 1
 
 
 update_expr(T, path, fname) = quote
-    if flattenable($T, Val{$(QuoteNode(fname))}) == Include()
+    if flattenable($T, Val{$(QuoteNode(fname))})
         val, n = update!(getfield($path, $(QuoteNode(fname))), data, n)
         setfield!($path, $(QuoteNode(fname)), val[1]) 
         ()

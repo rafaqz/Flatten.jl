@@ -69,20 +69,20 @@ munest = MuNest(MuFoo(1,2,3), 4.0, 5.0)
 
 @flattenable @foobar struct Partial{T}
     " Field a"
-    a::T | :foo | Include()
+    a::T | :foo | true
     " Field b"
-    b::T | :foo | Include()
+    b::T | :foo | true
     " Field c"
-    c::T | :foo | Exclude()
+    c::T | :foo | false
 end
 
 @flattenable @foobar struct NestedPartial{P,T}
     " Field np"
-    np::P | :bar | Include()
+    np::P | :bar | true
     " Field nb"
-    nb::T | :bar | Include()
+    nb::T | :bar | true
     " Field nc"
-    nc::T | :bar | Exclude()
+    nc::T | :bar | false
 end
 
 partial = Partial(1.0, 2.0, 3.0)
@@ -91,7 +91,7 @@ Flatten.flatten_inner(typeof(nestedpartial))
 @test flatten(Vector, nestedpartial) == [1.0, 2.0, 4.0]
 @test flatten(Tuple, nestedpartial) === (1.0, 2.0, 4)
 # It's not clear if this should actually work or not.
-# It may just be that fields sharing a type both need to be Include() or Exclude()
+# It may just be that fields sharing a type both need to be true or false
 # and mixing is disallowed for Vector.
 @test_broken flatten(Vector, reconstruct(nestedpartial, flatten(Vector, nestedpartial))) == flattenable(nestedpartial)
 @test flatten(Tuple, reconstruct(nestedpartial, flatten(Tuple, nestedpartial))) == flatten(Tuple, nestedpartial)
@@ -111,14 +111,14 @@ Flatten.flatten_inner(typeof(nestedpartial))
 
 # Updating tags updates flattened fields
 @reflattenable @refoobar struct Partial{T}
-    a::T | :bar | Exclude()
-    b::T | :bar | Exclude()
-    c::T | :foo | Include()   
+    a::T | :bar | false
+    b::T | :bar | false
+    c::T | :foo | true
 end
 
 @reflattenable @refoobar struct NestedPartial{P,T}
-    nb::T | :bar | Exclude() 
-    nc::T | :foo | Include()    
+    nb::T | :bar | false 
+    nc::T | :foo | true
 end
 
 @test flatten(Vector, nestedpartial) == [3.0, 5.0]
@@ -127,8 +127,8 @@ end
 @test flatten(Tuple, reconstruct(nestedpartial, flatten(Tuple, nestedpartial))) == flatten(Tuple, nestedpartial)
 @inferred flatten(Tuple, reconstruct(nestedpartial, flatten(Tuple, nestedpartial)))
 
-@test tagflatten(foo, flattenable) == (Flatten.Include(), Flatten.Include(), Flatten.Include())
-@test tagflatten(nest, flattenable) == (Flatten.Include(), Flatten.Include(), Flatten.Include(), Flatten.Include(), Flatten.Include())
+@test tagflatten(foo, flattenable) == (true, true, true)
+@test tagflatten(nest, flattenable) == (true, true, true, true, true)
 @test tagflatten(partial, foobar) == (:foo,)
 @test tagflatten(nestedpartial, foobar) == (:foo, :foo)
 
