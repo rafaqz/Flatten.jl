@@ -105,7 +105,8 @@ Nested{Int64,Int64}(Foo{Int64}(1, 2, 3), 4, 5)
 ```
 
 Fields can be excluded from flattening with the `flattenable(struct, field)` method,
-easily defined using @flattenable on a struct.
+easily defined using @flattenable on a struct. I'll also define a @foobar tag to
+use later.
 
 
 ```julia
@@ -116,15 +117,15 @@ import Flatten: flattenable
 @tag foobar :nobar
 
 @flattenable @foobar struct Partial{T}
-    a::T | :foo | Flat()
-    b::T | :foo | Flat()
-    c::T | :foo | NotFlat()
+    a::T | :foo | true
+    b::T | :foo | true
+    c::T | :foo | false
 end
 
 @flattenable @foobar struct NestedPartial{P,T}
-    np::P | :bar | Flat()
-    nb::T | :bar | Flat()
-    nc::T | :bar | NotFlat()
+    np::P | :bar | true
+    nb::T | :bar | true
+    nc::T | :bar | false
 end
 
 julia> partial = Partial(1.0, 2.0, 3.0)                                      
@@ -153,8 +154,8 @@ julia> tagflatten(nestedpartial, foobar)
 (:foo, :foo, :bar)
 ```
 
-And flatten the fieldnames by passing in the fieldname_meta function:
+And flatten the fieldnames by passing in the fieldname_tag function:
 ```julia
-julia> tagflatten(nestedpartial, fieldname_meta)                                            
+julia> tagflatten(nestedpartial, fieldname_tag)                                            
 (:a, :b, :nb) 
 ```
