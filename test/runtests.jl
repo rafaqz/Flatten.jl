@@ -50,7 +50,8 @@ nesttuple = NestTuple((foo, nest), 9, 10)
 mufoo = MuFoo(1.0, 2.0, 3.0)
 @test flatten(Tuple, update!(mufoo, flatten(Tuple, mufoo) .* 7)) == (7.0, 14.0, 21.0)
 munest = MuNest(MuFoo(1,2,3), 4.0, 5.0)
-@test flatten(update!(munest, flatten(munest) .* 7)) == (7.0, 14.0, 21.0, 28.0, 35.0)
+@test flatten(update!(munest, flatten(munest) .* 7)) == (7, 14, 21, 28.0, 35.0)
+Flatten.update_inner(typeof(munest))
 
 # Test nested types and tuples
 @test flatten(Vector, (Nest(Foo(1,2,3),4.0,5.0), Nest(Foo(6,7,8), 9, 10))) == Float64[1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0,9.0,10.0]
