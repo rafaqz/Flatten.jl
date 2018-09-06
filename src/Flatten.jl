@@ -1,11 +1,20 @@
 module Flatten
 
-using Tags, Nested, Unitful
+using Tags 
 
 export @flattenable, @reflattenable, flattenable, flatten, construct, reconstruct, retype, update!, 
        tagflatten, fieldname_tag, fieldparent_tag, fieldtype_tag, fieldparenttype_tag
 
 @tag flattenable true
+
+
+# Generalised nested struct walker 
+nested(T::Type, expr_builder, expr_combiner=default_combiner) = 
+    nested(T, Nothing, expr_builder, expr_combiner)
+nested(T::Type, P::Type, expr_builder, expr_combiner) = 
+    expr_combiner(T, [Expr(:..., expr_builder(T, fn)) for fn in fieldnames(T)])
+
+default_combiner(T, expressions) = Expr(:tuple, expressions...)
 
 
 flatten_expr(T, fname) = quote
@@ -23,7 +32,6 @@ flatten(::Type{V}, t) where V <: AbstractVector = V([flatten(t)...])
 flatten(::Type{Tuple}, t) = flatten(t)
 flatten(x::Nothing) = ()
 flatten(x::Number) = (x,) 
-flatten(x::Unitful.Quantity) = (x.val,) 
 @generated flatten(t) = flatten_inner(t)
 
 
@@ -72,8 +80,8 @@ reconstruct_inner(::Type{T}) where T = nested(T, reconstruct_expr, reconstruct_c
 reconstruct(t, data) = reconstruct(t, data, 1)[1][1]
 reconstruct(::Nothing, data, n) = (nothing,), n
 reconstruct(::Number, data, n) = (data[n],), n + 1 
-reconstruct(::T, data, n) where T <: Unitful.Quantity = (unit(T) * data[n],), n + 1
 @generated reconstruct(t, data, n) = reconstruct_inner(t)
+
 
 retype_expr(T, fname) = quote
     if flattenable($T, Val{$(QuoteNode(fname))})
@@ -93,7 +101,6 @@ retype_inner(::Type{T}) where T = nested(T, retype_expr, retype_combiner)
 retype(t, data) = retype(t, data, 1)[1][1]
 retype(::Nothing, data, n) = (nothing,), n
 retype(::Number, data, n) = (data[n],), n + 1 
-retype(::T, data, n) where T <: Unitful.Quantity = (unit(T) * data[n],), n + 1
 @generated retype(t, data, n) = retype_inner(t)
 
 
@@ -116,7 +123,6 @@ update!(t, data) = begin
 end
 update!(::Nothing, data, n) = (nothing,), n
 update!(::Number, data, n) = (data[n],), n + 1 
-update!(::T, data, n) where T <: Unitful.Quantity = (unit(T) * data[n],), n + 1
 @generated update!(t::T, data, n) where T = update_inner(T)
 
 end # module
