@@ -1,4 +1,4 @@
-using Flatten, BenchmarkTools, Tags, Unitful, Test
+using Flatten, BenchmarkTools, Tags, Test
 import Flatten: flattenable
 
 struct Foo{T}
@@ -147,17 +147,6 @@ anypoint = AnyPoint(1,2)
 @test flatten(Tuple, anypoint) == (1,2)
 @test flatten(Tuple, reconstruct(anypoint, (1,2))) == (1,2)
 
-
-# With units
-partialunits = Partial(1.0u"s", 2.0u"s", 3.0u"s")
-nestedunits = NestedPartial(Partial(1.0u"km", 2.0u"km", 3.0u"km"), 4.0u"g", 5.0u"g") 
-@test flatten(Vector, partialunits) == [3.0]
-@test flatten(Vector, reconstruct(partialunits, flatten(Vector, partialunits))) == flatten(Vector, partialunits)
-@test flatten(Tuple, reconstruct(partialunits, flatten(Tuple, partialunits))) == flatten(Tuple, partialunits)
-@test flatten(Vector, reconstruct(nestedunits, flatten(Vector, nestedunits))) == flatten(Vector, nestedunits)
-@test flatten(Tuple, reconstruct(nestedunits, flatten(Tuple, nestedunits))) == flatten(Tuple, nestedunits)
-@inferred flatten(Tuple, reconstruct(nestedunits, flatten(Tuple, nestedunits))) == flatten(Tuple, nestedunits)
-@test flatten(Tuple, reconstruct(nestedpartial, flatten(Tuple, nestedpartial))) == flatten(Tuple, nestedpartial)
 
 # With void
 nestvoid = Nest(Foo(1,2,3), nothing, nothing)
