@@ -104,10 +104,10 @@ Flatten.flatten_inner(typeof(nestedpartial))
 @test tagflatten((nestedpartial, partial), foobar) == (:foo, :foo, :bar, :foo, :foo)
 @test tagflatten(Tuple, (nestedpartial, partial), foobar) == (:foo, :foo, :bar, :foo, :foo)
 @test tagflatten(Vector, (nestedpartial, partial), foobar) == [:foo, :foo, :bar, :foo, :foo]
-@test tagflatten(Vector, (nestedpartial, partial), fieldname_tag) == [:a, :b, :nb, :a, :b]
-@test tagflatten(Vector, (nestedpartial, partial), fieldparenttype_tag) == DataType[Partial{Float64}, Partial{Float64}, NestedPartial{Partial{Float64},Int64}, Partial{Float64}, Partial{Float64}]
-@test tagflatten(Vector, (nestedpartial, partial), fieldparent_tag) == Symbol[:Partial, :Partial, :NestedPartial, :Partial, :Partial]
-@test tagflatten(Vector, (nestedpartial, partial), fieldtype_tag) == [Float64, Float64, Int64, Float64, Float64]
+@test fieldnameflatten(Vector, (nestedpartial, partial)) == [:a, :b, :nb, :a, :b]
+@test fieldtypeflatten(Vector, (nestedpartial, partial)) == [Float64, Float64, Int64, Float64, Float64]
+@test parenttypeflatten(Vector, (nestedpartial, partial)) == DataType[Partial{Float64}, Partial{Float64}, NestedPartial{Partial{Float64},Int64}, Partial{Float64}, Partial{Float64}]
+@test parentflatten(Vector, (nestedpartial, partial)) == Symbol[:Partial, :Partial, :NestedPartial, :Partial, :Partial]
 
 
 # Updating tags updates flattened fields
@@ -133,9 +133,9 @@ end
 @test tagflatten(partial, foobar) == (:foo,)
 @test tagflatten(nestedpartial, foobar) == (:foo, :foo)
 
-@test tagflatten(foo, fieldname_tag) == (:a, :b, :c)
-@test tagflatten(nest, fieldname_tag) == (:a, :b, :c, :nb, :nc)
-@test tagflatten(nestedpartial, fieldname_tag) == (:c, :nc)
+@test fieldnameflatten(foo) == (:a, :b, :c)
+@test fieldnameflatten(nest) == (:a, :b, :c, :nb, :nc)
+@test fieldnameflatten(nestedpartial) == (:c, :nc)
 
 
 # Test non-parametric types

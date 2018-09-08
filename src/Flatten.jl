@@ -3,7 +3,7 @@ module Flatten
 using Tags 
 
 export @flattenable, @reflattenable, flattenable, flatten, construct, reconstruct, retype, update!, 
-       tagflatten, fieldname_tag, fieldparent_tag, fieldtype_tag, fieldparenttype_tag
+       tagflatten, fieldnameflatten, parentflatten, fieldtypeflatten, parenttypeflatten
 
 @tag flattenable true
 
@@ -55,11 +55,24 @@ tagflatten(xs::NTuple{N,Number}, func, P, fname) where N = map(x -> func(P, fnam
 tagflatten(t, func) = tagflatten(t, func, Nothing, Val{:none})
 @generated tagflatten(t, func, P, fname) = tagflatten_inner(t)
 
+
 # # Helper functions to get field data with tagflatten
 fieldname_tag(T, ::Type{Val{N}}) where N = N
 fieldtype_tag(T, ::Type{Val{N}}) where N = fieldtype(T, N)
 fieldparent_tag(T, ::Type{Val{N}}) where N = T.name.name
 fieldparenttype_tag(T, ::Type{Val{N}}) where N = T 
+
+fieldnameflatten(T::Type, t) = tagflatten(T, t, fieldname_tag)
+fieldnameflatten(t) = fieldnameflatten(Tuple, t)  
+
+fieldtypeflatten(T::Type, t) = tagflatten(T, t, fieldtype_tag)
+fieldtypeflatten(t) = fieldtypeflatten(Tuple, t) 
+
+parentflatten(T::Type, t) = tagflatten(T, t, fieldparent_tag)
+parentflatten(t) = parentflatten(Tuple, t) 
+
+parenttypeflatten(T::Type, t) = tagflatten(T, t, fieldparenttype_tag)
+parenttypeflatten(t) = parenttypeflatten(Tuple, t)
 
 
 reconstruct_expr(T, fname) = quote
