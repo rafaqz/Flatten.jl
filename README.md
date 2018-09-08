@@ -15,13 +15,10 @@ Flatten.jl uses [Tags.jl](https://github.com/rafaqz/Tags.jl) to provide
 provides `tagflatten()` to flatten any other Tags.jl tag into the same sized
 vector as `flatten()`. This can be useful for attaching Bayesian priors or optional
 units to each field. Regular field data can also be collected with tagflatten:
-`fieldname_tag`, `fieldparent_tag`, `fieltype_tag` and `fielparenttype_tag` provide lists of fieldnames and types that may be useful for building parameter display
-tables. Any user-defined funciton of the form `func(::T, ::Type{Val{FN}}) = ` can be used in `tagflatten`,
-where T is the struct type and FN is the fieldname symbol.
-
-Flatten.jl also strips Uniful.jl units for use with numerical tools that don't handle units.
-
-The AST manipulation code is abstracted in the [Nested.jl](https://github.com/rafaqz/Nested.jl) library.
+`fieldnameflatten`, `parentflatten`, `fieldtypeflatten` and `parenttypeflatten` provide 
+lists of fieldnames and types that may be useful for building parameter display
+tables. Any user-defined function of the form `func(::T, ::Type{Val{fn}}) = ` can be used in `tagflatten`,
+where T is the struct type and fn is the fieldname symbol.
 
 This basis of this package was originally written by Robin Deits (@rdeits). The current form
 owes much to discussions and ideas from Jan Weidner (@jw3126) and Robin Deits. 
@@ -106,7 +103,7 @@ Nested{Int64,Int64}(Foo{Int64}(1, 2, 3), 4, 5)
 
 Fields can be excluded from flattening with the `flattenable(struct, field)` method,
 easily defined using @flattenable on a struct. I'll also define a @foobar tag to
-use later.
+use later:
 
 
 ```julia
@@ -154,8 +151,8 @@ julia> tagflatten(nestedpartial, foobar)
 (:foo, :foo, :bar)
 ```
 
-And flatten the fieldnames by passing in the fieldname_tag function:
+And flatten the fieldnames:
 ```julia
-julia> tagflatten(nestedpartial, fieldname_tag)                                            
+julia> fieldnameflatten(nestedpartial)                                            
 (:a, :b, :nb) 
 ```
