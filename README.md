@@ -20,6 +20,8 @@ lists of fieldnames and types that may be useful for building parameter display
 tables. Any user-defined function of the form `func(::T, ::Type{Val{fn}}) = ` can be used in `tagflatten`,
 where T is the struct type and fn is the fieldname symbol.
 
+[UnitlessFlatten.jl](https://github.com/rafaqz/UnitlessFlatten.jl) extends Flatten.jl to automatically strip and add Unitful units.
+
 This basis of this package was originally written by Robin Deits (@rdeits). The current form
 owes much to discussions and ideas from Jan Weidner (@jw3126) and Robin Deits. 
 
