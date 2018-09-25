@@ -3,7 +3,7 @@ module Flatten
 using FieldMetadata 
 
 export @flattenable, @reflattenable, flattenable, flatten, construct, reconstruct, retype, update!, 
-       tagflatten, fieldnameflatten, parentflatten, fieldtypeflatten, parenttypeflatten
+       metaflatten, fieldnameflatten, parentflatten, fieldtypeflatten, parenttypeflatten
 
 @metadata flattenable true
 
@@ -35,43 +35,43 @@ flatten(x::Number) = (x,)
 @generated flatten(t) = flatten_inner(t)
 
 
-tagflatten_expr(T, fname) = quote
+metaflatten_expr(T, fname) = quote
     if flattenable($T, Val{$(QuoteNode(fname))})
-        tagflatten(getfield(t, $(QuoteNode(fname))), func, $T, Val{$(QuoteNode(fname))})
+        metaflatten(getfield(t, $(QuoteNode(fname))), func, $T, Val{$(QuoteNode(fname))})
     else
         ()
     end
 end
 
-tagflatten_inner(T::Type) = nested(T, tagflatten_expr)
+metaflatten_inner(T::Type) = nested(T, metaflatten_expr)
 
 " Tag flattening. Flattens data attached to a field by methods of a passed in function"
-tagflatten(::Type{Tuple}, t, func) = tagflatten(t, func)
-tagflatten(::Type{V}, t, func) where V <: AbstractVector = [tagflatten(t, func)...]
+metaflatten(::Type{Tuple}, t, func) = metaflatten(t, func)
+metaflatten(::Type{V}, t, func) where V <: AbstractVector = [metaflatten(t, func)...]
 
-tagflatten(x::Nothing, func, P, fname) = ()
-tagflatten(x::Number, func, P, fname) = (func(P, fname),)
-tagflatten(xs::NTuple{N,Number}, func, P, fname) where N = map(x -> func(P, fname), xs)
-tagflatten(t, func) = tagflatten(t, func, Nothing, Val{:none})
-@generated tagflatten(t, func, P, fname) = tagflatten_inner(t)
+metaflatten(x::Nothing, func, P, fname) = ()
+metaflatten(x::Number, func, P, fname) = (func(P, fname),)
+metaflatten(xs::NTuple{N,Number}, func, P, fname) where N = map(x -> func(P, fname), xs)
+metaflatten(t, func) = metaflatten(t, func, Nothing, Val{:none})
+@generated metaflatten(t, func, P, fname) = metaflatten_inner(t)
 
 
-# # Helper functions to get field data with tagflatten
-fieldname_tag(T, ::Type{Val{N}}) where N = N
-fieldtype_tag(T, ::Type{Val{N}}) where N = fieldtype(T, N)
-fieldparent_tag(T, ::Type{Val{N}}) where N = T.name.name
-fieldparenttype_tag(T, ::Type{Val{N}}) where N = T 
+# # Helper functions to get field data with metaflatten
+fieldname_meta(T, ::Type{Val{N}}) where N = N
+fieldtype_meta(T, ::Type{Val{N}}) where N = fieldtype(T, N)
+fieldparent_meta(T, ::Type{Val{N}}) where N = T.name.name
+fieldparenttype_meta(T, ::Type{Val{N}}) where N = T 
 
-fieldnameflatten(T::Type, t) = tagflatten(T, t, fieldname_tag)
+fieldnameflatten(T::Type, t) = metaflatten(T, t, fieldname_meta)
 fieldnameflatten(t) = fieldnameflatten(Tuple, t)  
 
-fieldtypeflatten(T::Type, t) = tagflatten(T, t, fieldtype_tag)
+fieldtypeflatten(T::Type, t) = metaflatten(T, t, fieldtype_meta)
 fieldtypeflatten(t) = fieldtypeflatten(Tuple, t) 
 
-parentflatten(T::Type, t) = tagflatten(T, t, fieldparent_tag)
+parentflatten(T::Type, t) = metaflatten(T, t, fieldparent_meta)
 parentflatten(t) = parentflatten(Tuple, t) 
 
-parenttypeflatten(T::Type, t) = tagflatten(T, t, fieldparenttype_tag)
+parenttypeflatten(T::Type, t) = metaflatten(T, t, fieldparenttype_meta)
 parenttypeflatten(t) = parenttypeflatten(Tuple, t)
 
 

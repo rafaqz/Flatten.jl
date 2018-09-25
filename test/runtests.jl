@@ -99,18 +99,18 @@ Flatten.flatten_inner(typeof(nestedpartial))
 
 
 # Tag flattening
-@test tagflatten(partial, foobar) == (:foo, :foo)
-@test tagflatten(nestedpartial, foobar) == (:foo, :foo, :bar)
-@test tagflatten((nestedpartial, partial), foobar) == (:foo, :foo, :bar, :foo, :foo)
-@test tagflatten(Tuple, (nestedpartial, partial), foobar) == (:foo, :foo, :bar, :foo, :foo)
-@test tagflatten(Vector, (nestedpartial, partial), foobar) == [:foo, :foo, :bar, :foo, :foo]
+@test metaflatten(partial, foobar) == (:foo, :foo)
+@test metaflatten(nestedpartial, foobar) == (:foo, :foo, :bar)
+@test metaflatten((nestedpartial, partial), foobar) == (:foo, :foo, :bar, :foo, :foo)
+@test metaflatten(Tuple, (nestedpartial, partial), foobar) == (:foo, :foo, :bar, :foo, :foo)
+@test metaflatten(Vector, (nestedpartial, partial), foobar) == [:foo, :foo, :bar, :foo, :foo]
 @test fieldnameflatten(Vector, (nestedpartial, partial)) == [:a, :b, :nb, :a, :b]
 @test fieldtypeflatten(Vector, (nestedpartial, partial)) == [Float64, Float64, Int64, Float64, Float64]
 @test parenttypeflatten(Vector, (nestedpartial, partial)) == DataType[Partial{Float64}, Partial{Float64}, NestedPartial{Partial{Float64},Int64}, Partial{Float64}, Partial{Float64}]
 @test parentflatten(Vector, (nestedpartial, partial)) == Symbol[:Partial, :Partial, :NestedPartial, :Partial, :Partial]
 
 
-# Updating tags updates flattened fields
+# Updating metadata updates flattened fields
 @reflattenable @refoobar struct Partial{T}
     a::T | :bar | false
     b::T | :bar | false
@@ -128,10 +128,10 @@ end
 @test flatten(Tuple, reconstruct(nestedpartial, flatten(Tuple, nestedpartial))) == flatten(Tuple, nestedpartial)
 @inferred flatten(Tuple, reconstruct(nestedpartial, flatten(Tuple, nestedpartial)))
 
-@test tagflatten(foo, flattenable) == (true, true, true)
-@test tagflatten(nest, flattenable) == (true, true, true, true, true)
-@test tagflatten(partial, foobar) == (:foo,)
-@test tagflatten(nestedpartial, foobar) == (:foo, :foo)
+@test metaflatten(foo, flattenable) == (true, true, true)
+@test metaflatten(nest, flattenable) == (true, true, true, true, true)
+@test metaflatten(partial, foobar) == (:foo,)
+@test metaflatten(nestedpartial, foobar) == (:foo, :foo)
 
 @test fieldnameflatten(foo) == (:a, :b, :c)
 @test fieldnameflatten(nest) == (:a, :b, :c, :nb, :nc)
