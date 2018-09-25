@@ -1,4 +1,4 @@
-using Flatten, BenchmarkTools, Tags, Test
+using Flatten, BenchmarkTools, FieldMetadata, Test
 import Flatten: flattenable
 
 struct Foo{T}
@@ -66,7 +66,7 @@ Flatten.update_inner(typeof(munest))
 
 # Partial fields with @flattenable
 
-@tag foobar :nobar
+@metadata foobar :nobar
 
 @flattenable @foobar struct Partial{T}
     " Field a"

@@ -1,11 +1,11 @@
 module Flatten
 
-using Tags 
+using FieldMetadata 
 
 export @flattenable, @reflattenable, flattenable, flatten, construct, reconstruct, retype, update!, 
        tagflatten, fieldnameflatten, parentflatten, fieldtypeflatten, parenttypeflatten
 
-@tag flattenable true
+@metadata flattenable true
 
 
 # Generalised nested struct walker 

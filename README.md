@@ -10,9 +10,9 @@ while still providing access to differentiation, solvers and optimisers that
 require flat vectors of parameters. Importantly it's also fast and type-stable.
 
 
-Flatten.jl uses [Tags.jl](https://github.com/rafaqz/Tags.jl) to provide
+Flatten.jl uses [FieldMetadata.jl](https://github.com/rafaqz/FieldMetadata.jl) to provide
 `@flattenable` macro to define which struct fields are to be flattened. It also
-provides `tagflatten()` to flatten any other Tags.jl tag into the same sized
+provides `tagflatten()` to flatten any other FieldMetadata.jl tag into the same sized
 vector as `flatten()`. This can be useful for attaching Bayesian priors or optional
 units to each field. Regular field data can also be collected with tagflatten:
 `fieldnameflatten`, `parentflatten`, `fieldtypeflatten` and `parenttypeflatten` provide 
@@ -107,11 +107,11 @@ use later:
 
 
 ```julia
-using Tags
+using FieldMetadata
 using Flatten 
 import Flatten: flattenable
 
-@tag foobar :nobar
+@metadata foobar :nobar
 
 @flattenable @foobar struct Partial{T}
     a::T | :foo | true

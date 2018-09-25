@@ -27,8 +27,7 @@ git:
 
 ## uncomment the following lines to override the default test script
 script:
-  - julia -e 'using Pkg; Pkg.add(PackageSpec(url="https://github.com/rafaqz/Tags.jl.git")); Pkg.build("Tags")'
-  - julia -e 'using Pkg; Pkg.add(PackageSpec(url="https://github.com/rafaqz/Nested.jl.git")); Pkg.build("Nested")'
+  - julia -e 'using Pkg; Pkg.add(PackageSpec(url="https://github.com/rafaqz/FieldMetadata.jl.git")); Pkg.build("FieldMetadata")'
   - julia -e 'using Pkg; Pkg.add(PackageSpec(url=pwd())); Pkg.build("Flatten"); Pkg.test("Flatten"; coverage=true)'
 after_success:
   # push coverage results to Coveralls
