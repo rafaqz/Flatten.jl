@@ -14,10 +14,9 @@ export @flattenable,
        fieldnameflatten, 
        parentflatten, 
        fieldtypeflatten, 
-       parenttypeflatten, 
+       parenttypeflatten 
 
 @metadata flattenable true
-
 
 # Generalised nested struct walker 
 nested(T::Type, expr_builder, expr_combiner=default_combiner) = 
