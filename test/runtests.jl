@@ -105,8 +105,8 @@ Flatten.flatten_inner(typeof(nestedpartial))
 @test metaflatten(Tuple, (nestedpartial, partial), foobar) == (:foo, :foo, :bar, :foo, :foo)
 @test metaflatten(Vector, (nestedpartial, partial), foobar) == [:foo, :foo, :bar, :foo, :foo]
 @test fieldnameflatten(Vector, (nestedpartial, partial)) == [:a, :b, :nb, :a, :b]
-@test fieldtypeflatten(Vector, (nestedpartial, partial)) == [Float64, Float64, Int64, Float64, Float64]
-@test parenttypeflatten(Vector, (nestedpartial, partial)) == DataType[Partial{Float64}, Partial{Float64}, NestedPartial{Partial{Float64},Int64}, Partial{Float64}, Partial{Float64}]
+@test fieldtypeflatten(Vector, (nestedpartial, partial)) == [Float64, Float64, Int, Float64, Float64]
+@test parenttypeflatten(Vector, (nestedpartial, partial)) == DataType[Partial{Float64}, Partial{Float64}, NestedPartial{Partial{Float64},Int}, Partial{Float64}, Partial{Float64}]
 @test parentflatten(Vector, (nestedpartial, partial)) == Symbol[:Partial, :Partial, :NestedPartial, :Partial, :Partial]
 
 
