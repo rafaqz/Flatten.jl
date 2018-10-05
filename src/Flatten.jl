@@ -2,8 +2,19 @@ module Flatten
 
 using FieldMetadata 
 
-export @flattenable, @reflattenable, flattenable, flatten, construct, reconstruct, retype, update!, 
-       metaflatten, fieldnameflatten, parentflatten, fieldtypeflatten, parenttypeflatten
+export @flattenable, 
+       @reflattenable, 
+       flattenable, 
+       flatten, 
+       construct, 
+       reconstruct, 
+       retype, 
+       update!, 
+       metaflatten,
+       fieldnameflatten, 
+       parentflatten, 
+       fieldtypeflatten, 
+       parenttypeflatten, 
 
 @metadata flattenable true
 
