@@ -65,7 +65,7 @@ Flatten.update_inner(typeof(munest))
 
 # Test retyping
 
-@test typeof(retype(foo, round.(Int, flatten(foo))).a) == Int64
+@test typeof(retype(foo, round.(Int, flatten(foo))).a) == Int
 
 # Partial fields with @flattenable
 
@@ -94,12 +94,12 @@ nestedpartial = NestedPartial(Partial(1.0, 2.0, 3.0), 4, 5)
 Flatten.flatten_inner(typeof(nestedpartial))
 @test flatten(Vector, nestedpartial) == [1.0, 2.0, 4.0]
 @test flatten(Tuple, nestedpartial) === (1.0, 2.0, 4)
+
 # It's not clear if this should actually work or not.
 # It may just be that fields sharing a type both need to be true or false
 # and mixing is disallowed for Vector.
 @test_broken flatten(Vector, reconstruct(nestedpartial, flatten(Vector, nestedpartial))) == flattenable(nestedpartial)
 @test flatten(Tuple, reconstruct(nestedpartial, flatten(Tuple, nestedpartial))) == flatten(Tuple, nestedpartial)
-
 
 # Tag flattening
 @test metaflatten(partial, foobar) == (:foo, :foo)
@@ -127,6 +127,18 @@ end
     nc::T | :foo | true
 end
 
+@reflattenable mutable struct MuFoo{T}
+    a::T | false
+    b::T | true
+    c::T | false
+end
+
+@reflattenable mutable struct MuNest{T1, T2}
+    nf::MuFoo{T1} | true
+    nb::T2        | true
+    nc::T2        | false
+end
+
 @test flatten(Vector, nestedpartial) == [3.0, 5.0]
 @test flatten(Tuple, nestedpartial) == (3.0, 5.0)
 @test flatten(Vector, reconstruct(nestedpartial, flatten(Vector, nestedpartial))) == flatten(Vector, nestedpartial)
@@ -142,6 +154,10 @@ end
 @test fieldnameflatten(nest) == (:a, :b, :c, :nb, :nc)
 @test fieldnameflatten(nestedpartial) == (:c, :nc)
 
+mufoo = MuFoo(1.0, 2.0, 3.0)
+munest = MuNest(MuFoo(1,2,3), 4.0, 5.0)
+@test flatten(update!(mufoo, flatten(Tuple, mufoo) .* 7)) == (14.0,)
+@test flatten(update!(munest, flatten(munest) .* 7)) == (14, 28.0)
 
 # Test non-parametric types
 mutable struct AnyPoint
