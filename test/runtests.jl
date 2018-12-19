@@ -41,8 +41,8 @@ nesttuple = NestTuple((foo, nest), 9, 10)
 @test flatten(Tuple, Foo(1,2,3)) == (1,2,3)
 @test flatten(Tuple, ((1,2,3), (4,5))) == (1,2,3,4,5)
 @test flatten(Tuple, Nest(Foo(1,2,3),4,5)) == (1,2,3,4,5)
-@test flatten(Tuple, (Nest(Foo(1,2,3),4,5), Nest(Foo(6,7,8), 9, 10))) == (1,2,3,4,5,6,7,8,9,10)
-@test flatten(Tuple, Nest(Foo(1,2,3), (4,5), (6,7))) == (1,2,3,4,5,6,7)
+@test flatten((Nest(Foo(1,2,3),4,5), Nest(Foo(6,7,8), 9, 10))) == (1,2,3,4,5,6,7,8,9,10)
+@test flatten(Nest(Foo(1,2,3), (4,5), (6,7))) == (1,2,3,4,5,6,7)
 
 @test flatten(Vector, reconstruct(foo, flatten(Vector, foo))) == flatten(Vector, foo)
 @test flatten(Tuple, reconstruct(foo, flatten(Tuple, foo))) == flatten(Tuple, foo)
@@ -57,12 +57,15 @@ Flatten.update_inner(typeof(munest))
 @test flatten(Vector, (Nest(Foo(1,2,3),4.0,5.0), Nest(Foo(6,7,8), 9, 10))) == Float64[1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0,9.0,10.0]
 @test flatten(Tuple, (Nest(Foo(1,2,3),4.0,5.0), Nest(Foo(6,7,8), 9, 10))) == (1,2,3,4.0,5.0,6,7,8,9,10)
 @test flatten(Tuple, reconstruct(nest, flatten(Tuple, nest))) == flatten(Tuple, nest)
-@test flatten(Tuple, reconstruct((nest, nest), flatten(Tuple, (nest, nest)))) == flatten(Tuple, (nest, nest))
-@test flatten(Tuple, reconstruct(nesttuple, flatten(Tuple, nesttuple))) == flatten(Tuple, nesttuple)
+@test flatten(reconstruct((nest, nest), flatten((nest, nest)))) == flatten((nest, nest))
+@test flatten(reconstruct(nesttuple, flatten(nesttuple))) == flatten(nesttuple)
 
 @test typeof(reconstruct(foo, flatten(Tuple, foo))) <: Foo
 @test typeof(reconstruct(nest, flatten(Tuple, nest))) <: Nest
 
+# Test retyping
+
+@test typeof(retype(foo, round.(Int, flatten(foo))).a) == Int64
 
 # Partial fields with @flattenable
 
@@ -104,9 +107,11 @@ Flatten.flatten_inner(typeof(nestedpartial))
 @test metaflatten((nestedpartial, partial), foobar) == (:foo, :foo, :bar, :foo, :foo)
 @test metaflatten(Tuple, (nestedpartial, partial), foobar) == (:foo, :foo, :bar, :foo, :foo)
 @test metaflatten(Vector, (nestedpartial, partial), foobar) == [:foo, :foo, :bar, :foo, :foo]
+@test fieldtypeflatten((nestedpartial, partial)) == (Float64, Float64, Int, Float64, Float64)
 @test fieldnameflatten(Vector, (nestedpartial, partial)) == [:a, :b, :nb, :a, :b]
-@test fieldtypeflatten(Vector, (nestedpartial, partial)) == [Float64, Float64, Int, Float64, Float64]
+@test parenttypeflatten(nestedpartial) == (Partial{Float64}, Partial{Float64}, NestedPartial{Partial{Float64},Int})
 @test parenttypeflatten(Vector, (nestedpartial, partial)) == DataType[Partial{Float64}, Partial{Float64}, NestedPartial{Partial{Float64},Int}, Partial{Float64}, Partial{Float64}]
+@test parentflatten(nestedpartial) == (:Partial, :Partial, :NestedPartial)
 @test parentflatten(Vector, (nestedpartial, partial)) == Symbol[:Partial, :Partial, :NestedPartial, :Partial, :Partial]
 
 
