@@ -13,12 +13,12 @@ require flat vectors of parameters. Importantly it's also fast and type-stable.
 
 Flatten.jl uses [FieldMetadata.jl](https://github.com/rafaqz/FieldMetadata.jl) to provide
 `@flattenable` macro to define which struct fields are to be flattened. It also
-provides `tagflatten()` to flatten any other FieldMetadata.jl tag into the same sized
+provides `metaflatten()` to flatten any other FieldMetadata.jl meta-fields into the same sized
 vector as `flatten()`. This can be useful for attaching Bayesian priors or optional
-units to each field. Regular field data can also be collected with tagflatten:
+units to each field. Regular field data can also be collected with metaflatten:
 `fieldnameflatten`, `parentflatten`, `fieldtypeflatten` and `parenttypeflatten` provide 
 lists of fieldnames and types that may be useful for building parameter display
-tables. Any user-defined function of the form `func(::T, ::Type{Val{fn}}) = ` can be used in `tagflatten`,
+tables. Any user-defined function of the form `func(::T, ::Type{Val{fn}}) = ` can be used in `metaflatten`,
 where T is the struct type and fn is the fieldname symbol.
 
 [UnitlessFlatten.jl](https://github.com/rafaqz/UnitlessFlatten.jl) extends Flatten.jl to automatically strip and add Unitful units.
@@ -105,7 +105,7 @@ Nested{Int64,Int64}(Foo{Int64}(1, 2, 3), 4, 5)
 ```
 
 Fields can be excluded from flattening with the `flattenable(struct, field)` method,
-easily defined using @flattenable on a struct. I'll also define a @foobar tag to
+easily defined using @flattenable on a struct. I'll also define a @foobar metadata to
 use later:
 
 
@@ -144,13 +144,13 @@ julia> flatten(Vector, nestedpartial)
  4.0
 ```
 
-We can also flatten the @foobar tag defined above:
+We can also flatten the @foobar metadata defined above:
 
 ```julia
-julia> tagflatten(typeof(partial), foobar) 
+julia> metaflatten(typeof(partial), foobar) 
 (:foo, :foo)
 
-julia> tagflatten(nestedpartial, foobar)
+julia> metaflatten(nestedpartial, foobar)
 (:foo, :foo, :bar)
 ```
 
