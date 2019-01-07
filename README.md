@@ -21,8 +21,8 @@ lists of fieldnames and types that may be useful for building parameter display
 tables. Any user-defined function of the form `func(::T, ::Type{Val{fn}}) = ` can be used in `metaflatten`,
 where T is the struct type and fn is the fieldname symbol.
 
-One limitation of using `reconstruct` is that it requires an inner consstructor that accept all fields in the order they come in the type. 
-If some fields are recalculated at construction time, they should be calculateed in this final inner constructor. 
+One limitation of using `reconstruct` is that it requires an outer consstructor that accept all fields in the order they come in the type. 
+If some fields are recalculated at construction time, they should be calculateed in this constructor. 
 
 [UnitlessFlatten.jl](https://github.com/rafaqz/UnitlessFlatten.jl) extends Flatten.jl to automatically strip and add Unitful units.
 
