@@ -108,7 +108,7 @@ reconstruct(::Number, data, n) = (data[n],), n + 1
 
 retype_expr(T, fname) = quote
     if flattenable($T, Val{$(QuoteNode(fname))})
-        val, n = reconstruct(getfield(t, $(QuoteNode(fname))), data, n)
+        val, n = retype(getfield(t, $(QuoteNode(fname))), data, n)
         val
     else
         (getfield(t, $(QuoteNode(fname))),)
