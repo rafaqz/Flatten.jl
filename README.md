@@ -5,26 +5,31 @@
 [![codecov.io](http://codecov.io/github/rafaqz/Flatten.jl/coverage.svg?branch=master)](http://codecov.io/github/rafaqz/Flatten.jl?branch=master)
 [![Coverage Status](https://coveralls.io/repos/rafaqz/Flatten.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/rafaqz/Flatten.jl?branch=master)
 
-Flatten.jl converts data between nested and flat structures, using `flatten()`, 
-`construct` and `reconstruct()` functions. This facilitates building modular, compostable code
-while still providing access to differentiation, solvers and optimisers that
-require flat vectors of parameters. Importantly it's also fast and type-stable.
+Flatten.jl converts data between nested and flat structures, using `flatten()`,
+`reconstruct()` and `retype()` functions. This facilitates building modular,
+compostable code while still providing access to differentiation, solvers and
+optimisers that require flat vectors of parameters. Importantly it's also type-stable 
+and _very_ fast.
 
+Flatten.jl uses [FieldMetadata.jl](https://github.com/rafaqz/FieldMetadata.jl)
+to provide `@flattenable` macro to indicate which struct fields are to be
+flattened, defaulting to `true` for all fields. It also provides `metaflatten()`
+to flatten any other FieldMetadata.jl meta-fields into the same sized vector as
+`flatten()`. This can be useful for attaching Bayesian priors or optional units
+to each field. Regular field data can also be collected with metaflatten:
+`fieldnameflatten`, `parentflatten`, `fieldtypeflatten` and `parenttypeflatten`
+provide lists of fieldnames and types that may be useful for building parameter
+display tables. Any user-defined function of the form `func(::T,
+::Type{Val{fn}}) = ` can be used in `metaflatten`, where T is the struct type
+and fn is the fieldname symbol.
 
-Flatten.jl uses [FieldMetadata.jl](https://github.com/rafaqz/FieldMetadata.jl) to provide
-`@flattenable` macro to define which struct fields are to be flattened. It also
-provides `metaflatten()` to flatten any other FieldMetadata.jl meta-fields into the same sized
-vector as `flatten()`. This can be useful for attaching Bayesian priors or optional
-units to each field. Regular field data can also be collected with metaflatten:
-`fieldnameflatten`, `parentflatten`, `fieldtypeflatten` and `parenttypeflatten` provide 
-lists of fieldnames and types that may be useful for building parameter display
-tables. Any user-defined function of the form `func(::T, ::Type{Val{fn}}) = ` can be used in `metaflatten`,
-where T is the struct type and fn is the fieldname symbol.
+One limitation of `reconstruct` is that it requires an outer constructor that
+accept all fields in the order they come in the type. If some fields are
+recalculated at construction time, they should be calculated in this
+constructor. 
 
-One limitation of using `reconstruct` is that it requires an outer consstructor that accept all fields in the order they come in the type. 
-If some fields are recalculated at construction time, they should be calculateed in this constructor. 
-
-[UnitlessFlatten.jl](https://github.com/rafaqz/UnitlessFlatten.jl) extends Flatten.jl to automatically strip and add Unitful units.
+[UnitlessFlatten.jl](https://github.com/rafaqz/UnitlessFlatten.jl) extends
+Flatten.jl to automatically strip and add Unitful units.
 
 This basis of this package was originally written by Robin Deits (@rdeits). The current form
 owes much to discussions and ideas from Jan Weidner (@jw3126) and Robin Deits. 

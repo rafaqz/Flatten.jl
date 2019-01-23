@@ -1,12 +1,12 @@
 module Flatten
 
 using FieldMetadata 
+import FieldMetadata: @flattenable, @reflattenable, flattenable
 
 export @flattenable, 
        @reflattenable, 
        flattenable, 
        flatten, 
-       construct, 
        reconstruct, 
        retype, 
        update!, 
@@ -15,8 +15,6 @@ export @flattenable,
        parentflatten, 
        fieldtypeflatten, 
        parenttypeflatten 
-
-@metadata flattenable true
 
 # Generalised nested struct walker 
 nested(T::Type, expr_builder, expr_combiner=default_combiner) = 
