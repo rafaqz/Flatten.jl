@@ -1,6 +1,6 @@
 module Flatten
 
-using FieldMetadata 
+using FieldMetadata, Requires 
 import FieldMetadata: @flattenable, @reflattenable, flattenable
 
 export @flattenable, 
@@ -16,42 +16,52 @@ export @flattenable,
        fieldtypeflatten, 
        parenttypeflatten 
 
+function __init__()
+    @require Unitful="1986cc42-f94f-5a68-af5c-568840ba703d" begin
+        using Unitful
+        export ulflatten, 
+               ulreconstruct, 
+               ulupdate!
+        include("unitless.jl")
+    end
+end
+
 # Generalised nested struct walker 
-nested(T::Type, expr_builder, expr_combiner=default_combiner) = 
-    nested(T, Nothing, expr_builder, expr_combiner)
-nested(T::Type, P::Type, expr_builder, expr_combiner) = 
-    expr_combiner(T, [Expr(:..., expr_builder(T, fn)) for fn in fieldnames(T)])
+nested(T::Type, expr_builder, expr_combiner, funcname) = 
+    nested(T, Nothing, expr_builder, expr_combiner, funcname)
+nested(T::Type, P::Type, expr_builder, expr_combiner, funcname) = 
+    expr_combiner(T, [Expr(:..., expr_builder(T, fn, funcname)) for fn in fieldnames(T)])
 
 default_combiner(T, expressions) = Expr(:tuple, expressions...)
 
 
-flatten_expr(T, fname) = quote
+flatten_expr(T, fname, funcname) = quote
     if flattenable($T, Val{$(QuoteNode(fname))})
-        flatten(getfield(t, $(QuoteNode(fname))))
+        $funcname(getfield(t, $(QuoteNode(fname))))
     else
         ()
     end
 end
 
-flatten_inner(T) = nested(T, flatten_expr)
+flatten_inner(T, funcname) = nested(T, flatten_expr, default_combiner, funcname)
 
 "Flattening. Flattens a nested type to a Tuple or Vector"
 flatten(::Type{V}, t) where V <: AbstractVector = V([flatten(t)...])
 flatten(::Type{Tuple}, t) = flatten(t)
 flatten(x::Nothing) = ()
 flatten(x::Number) = (x,) 
-@generated flatten(t) = flatten_inner(t)
+@generated flatten(t) = flatten_inner(t, :flatten)
 
 
-metaflatten_expr(T, fname) = quote
+metaflatten_expr(T, fname, funcname) = quote
     if flattenable($T, Val{$(QuoteNode(fname))})
-        metaflatten(getfield(t, $(QuoteNode(fname))), func, $T, Val{$(QuoteNode(fname))})
+        $funcname(getfield(t, $(QuoteNode(fname))), func, $T, Val{$(QuoteNode(fname))})
     else
         ()
     end
 end
 
-metaflatten_inner(T::Type) = nested(T, metaflatten_expr)
+metaflatten_inner(T::Type, funcname) = nested(T, metaflatten_expr, default_combiner, funcname)
 
 " Tag flattening. Flattens data attached to a field by methods of a passed in function"
 metaflatten(::Type{Tuple}, t, func) = metaflatten(t, func)
@@ -61,7 +71,7 @@ metaflatten(x::Nothing, func, P, fname) = ()
 metaflatten(x::Number, func, P, fname) = (func(P, fname),)
 metaflatten(xs::NTuple{N,Number}, func, P, fname) where N = map(x -> func(P, fname), xs)
 metaflatten(t, func) = metaflatten(t, func, Nothing, Val{:none})
-@generated metaflatten(t, func, P, fname) = metaflatten_inner(t)
+@generated metaflatten(t, func, P, fname) = metaflatten_inner(t, :metaflatten)
 
 
 # # Helper functions to get field data with metaflatten
@@ -83,9 +93,9 @@ parenttypeflatten(T::Type, t) = metaflatten(T, t, fieldparenttype_meta)
 parenttypeflatten(t) = parenttypeflatten(Tuple, t)
 
 
-reconstruct_expr(T, fname) = quote
+reconstruct_expr(T, fname, funcname) = quote
     if flattenable($T, Val{$(QuoteNode(fname))})
-        val, n = reconstruct(getfield(t, $(QuoteNode(fname))), data, n)
+        val, n = $funcname(getfield(t, $(QuoteNode(fname))), data, n)
         val
     else
         (getfield(t, $(QuoteNode(fname))),)
@@ -95,18 +105,18 @@ end
 reconstruct_combiner(T, expressions) = :(($(Expr(:call, :($T), expressions...)),), n)
 reconstruct_combiner(T::Type{<:Tuple}, expressions) = :(($(Expr(:tuple, expressions...)),), n)
 
-reconstruct_inner(::Type{T}) where T = nested(T, reconstruct_expr, reconstruct_combiner)
+reconstruct_inner(::Type{T}, funcname) where T = nested(T, reconstruct_expr, reconstruct_combiner, funcname)
 
 " Reconstruct an object from partial Tuple or Vector data and another object"
 reconstruct(t, data) = reconstruct(t, data, 1)[1][1]
 reconstruct(::Nothing, data, n) = (nothing,), n
 reconstruct(::Number, data, n) = (data[n],), n + 1 
-@generated reconstruct(t, data, n) = reconstruct_inner(t)
+@generated reconstruct(t, data, n) = reconstruct_inner(t, :reconstruct)
 
 
-retype_expr(T, fname) = quote
+retype_expr(T, fname, funcname) = quote
     if flattenable($T, Val{$(QuoteNode(fname))})
-        val, n = retype(getfield(t, $(QuoteNode(fname))), data, n)
+        val, n = $funcname(getfield(t, $(QuoteNode(fname))), data, n)
         val
     else
         (getfield(t, $(QuoteNode(fname))),)
@@ -116,18 +126,18 @@ end
 retype_combiner(T, expressions) = :(($(Expr(:call, :($T.name.wrapper), expressions...)),), n)
 retype_combiner(T::Type{<:Tuple}, expressions) = :(($(Expr(:tuple, expressions...)),), n)
 
-retype_inner(::Type{T}) where T = nested(T, retype_expr, retype_combiner)
+retype_inner(::Type{T}, funcname) where T = nested(T, retype_expr, retype_combiner, funcname)
 
 " Retype an object from partial Tuple or Vector data and another object"
 retype(t, data) = retype(t, data, 1)[1][1]
 retype(::Nothing, data, n) = (nothing,), n
 retype(::Number, data, n) = (data[n],), n + 1 
-@generated retype(t, data, n) = retype_inner(t)
+@generated retype(t, data, n) = retype_inner(t, :retype)
 
 
-update_expr(T, fname) = quote
+update_expr(T, fname, funcname) = quote
     if flattenable($T, Val{$(QuoteNode(fname))})
-        val, n = update!(getfield(t, $(QuoteNode(fname))), data, n)
+        val, n = $funcname(getfield(t, $(QuoteNode(fname))), data, n)
         setfield!(t, $(QuoteNode(fname)), val[1]) 
     end
     ()
@@ -135,7 +145,7 @@ end
 
 update_combiner(T, expressions) = :($(Expr(:tuple, expressions...)); ((t,), n))
 
-update_inner(::Type{T}) where T = nested(T, update_expr, update_combiner)
+update_inner(::Type{T}, funcname) where T = nested(T, update_expr, update_combiner, funcname)
 
 " Update a mutable object with partial Tuple or Vector data"
 update!(t, data) = begin
@@ -144,6 +154,6 @@ update!(t, data) = begin
 end
 update!(::Nothing, data, n) = (nothing,), n
 update!(::Number, data, n) = (data[n],), n + 1 
-@generated update!(t::T, data, n) where T = update_inner(T)
+@generated update!(t::T, data, n) where T = update_inner(T, :update!)
 
 end # module

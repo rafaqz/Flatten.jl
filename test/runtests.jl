@@ -1,34 +1,34 @@
-using Flatten, BenchmarkTools, FieldMetadata, Test
+using Flatten, BenchmarkTools, FieldMetadata, Test, Unitful
 import Flatten: flattenable
 
-struct Foo{T}
-    a::T
-    b::T
-    c::T
+struct Foo{A,B,C}
+    a::A
+    b::B
+    c::C
 end
 
-struct Nest{T1, T2}
-    nf::Foo{T1}
-    nb::T2
-    nc::T2
+struct Nest{F,B,C}
+    nf::F
+    nb::B
+    nc::C
 end
 
-struct NestTuple{T1, T2, T3, T4}
-    nf::Tuple{Foo{T1},Nest{T2,T3}}
-    nb::T4
-    nc::T4
+struct NestTuple{F,B,C}
+    nf::F
+    nb::B
+    nc::C
 end
 
-mutable struct MuFoo{T}
-    a::T
-    b::T
-    c::T
+mutable struct MuFoo{A,B,C}
+    a::A
+    b::B
+    c::C
 end
 
-mutable struct MuNest{T1, T2}
-    nf::MuFoo{T1}
-    nb::T2
-    nc::T2
+mutable struct MuNest{F,B,C}
+    nf::F
+    nb::B
+    nc::C
 end
 
 
@@ -51,7 +51,6 @@ mufoo = MuFoo(1.0, 2.0, 3.0)
 @test flatten(Tuple, update!(mufoo, flatten(Tuple, mufoo) .* 7)) == (7.0, 14.0, 21.0)
 munest = MuNest(MuFoo(1,2,3), 4.0, 5.0)
 @test flatten(update!(munest, flatten(munest) .* 7)) == (7, 14, 21, 28.0, 35.0)
-Flatten.update_inner(typeof(munest))
 
 # Test nested types and tuples
 @test flatten(Vector, (Nest(Foo(1,2,3),4.0,5.0), Nest(Foo(6,7,8), 9, 10))) == Float64[1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0,9.0,10.0]
@@ -71,27 +70,26 @@ Flatten.update_inner(typeof(munest))
 
 @metadata foobar :nobar
 
-@flattenable @foobar struct Partial{T}
+@flattenable @foobar struct Partial{A,B,C}
     " Field a"
-    a::T | :foo | true
+    a::A | :foo | true
     " Field b"
-    b::T | :foo | true
+    b::B | :foo | true
     " Field c"
-    c::T | :foo | false
+    c::C | :foo | false
 end
 
-@flattenable @foobar struct NestedPartial{P,T}
+@flattenable @foobar struct NestedPartial{P,B,C}
     " Field np"
     np::P | :bar | true
     " Field nb"
-    nb::T | :bar | true
+    nb::B | :bar | true
     " Field nc"
-    nc::T | :bar | false
+    nc::C | :bar | false
 end
 
 partial = Partial(1.0, 2.0, 3.0)
 nestedpartial = NestedPartial(Partial(1.0, 2.0, 3.0), 4, 5) 
-Flatten.flatten_inner(typeof(nestedpartial))
 @test flatten(Vector, nestedpartial) == [1.0, 2.0, 4.0]
 @test flatten(Tuple, nestedpartial) === (1.0, 2.0, 4)
 
@@ -109,40 +107,46 @@ Flatten.flatten_inner(typeof(nestedpartial))
 @test metaflatten(Vector, (nestedpartial, partial), foobar) == [:foo, :foo, :bar, :foo, :foo]
 @test fieldtypeflatten((nestedpartial, partial)) == (Float64, Float64, Int, Float64, Float64)
 @test fieldnameflatten(Vector, (nestedpartial, partial)) == [:a, :b, :nb, :a, :b]
-@test parenttypeflatten(nestedpartial) == (Partial{Float64}, Partial{Float64}, NestedPartial{Partial{Float64},Int})
-@test parenttypeflatten(Vector, (nestedpartial, partial)) == DataType[Partial{Float64}, Partial{Float64}, NestedPartial{Partial{Float64},Int}, Partial{Float64}, Partial{Float64}]
+@test parenttypeflatten(nestedpartial) == 
+    (Partial{Float64,Float64,Float64}, Partial{Float64,Float64,Float64}, 
+     NestedPartial{Partial{Float64,Float64,Float64},Int,Int})
+@test parenttypeflatten(Vector, (nestedpartial, partial)) == 
+    DataType[Partial{Float64,Float64,Float64}, Partial{Float64,Float64,Float64}, 
+             NestedPartial{Partial{Float64,Float64,Float64},Int,Int}, 
+             Partial{Float64,Float64,Float64}, Partial{Float64,Float64,Float64}]
 @test parentflatten(nestedpartial) == (:Partial, :Partial, :NestedPartial)
 @test parentflatten(Vector, (nestedpartial, partial)) == Symbol[:Partial, :Partial, :NestedPartial, :Partial, :Partial]
 
 
 # Updating metadata updates flattened fields
-@reflattenable @refoobar struct Partial{T}
-    a::T | :bar | false
-    b::T | :bar | false
-    c::T | :foo | true
+@reflattenable @refoobar struct Partial
+    a | :bar | false
+    b | :bar | false
+    c | :foo | true
 end
 
-@reflattenable @refoobar struct NestedPartial{P,T}
-    nb::T | :bar | false 
-    nc::T | :foo | true
+@reflattenable @refoobar struct NestedPartial
+    nf | true
+    nb | :bar | false 
+    nc | :foo | true
 end
 
-@reflattenable mutable struct MuFoo{T}
-    a::T | false
-    b::T | true
-    c::T | false
+@reflattenable mutable struct MuFoo
+    a | false
+    b | true
+    c | false
 end
 
-@reflattenable mutable struct MuNest{T1, T2}
-    nf::MuFoo{T1} | true
-    nb::T2        | true
-    nc::T2        | false
+@reflattenable mutable struct MuNest
+    nf | true
+    nb | true
+    nc | false
 end
 
 @test flatten(Vector, nestedpartial) == [3.0, 5.0]
 @test flatten(Tuple, nestedpartial) == (3.0, 5.0)
 @test flatten(Vector, reconstruct(nestedpartial, flatten(Vector, nestedpartial))) == flatten(Vector, nestedpartial)
-@test flatten(Tuple, reconstruct(nestedpartial, flatten(Tuple, nestedpartial))) == flatten(Tuple, nestedpartial)
+@test flatten(Tuple, retype(nestedpartial, flatten(Tuple, nestedpartial))) == flatten(Tuple, nestedpartial)
 @inferred flatten(Tuple, reconstruct(nestedpartial, flatten(Tuple, nestedpartial)))
 
 @test metaflatten(foo, flattenable) == (true, true, true)
@@ -171,9 +175,42 @@ anypoint = AnyPoint(1,2)
 
 # With void
 nestvoid = Nest(Foo(1,2,3), nothing, nothing)
+munestvoid = MuNest(MuFoo(1,2,3), nothing, nothing)
 @test flatten(Tuple, nestvoid) == (1,2,3)
 @test flatten(Tuple, (Nest(Foo(1,2,3), nothing, nothing), Nest(Foo(nothing, nothing, nothing), 9, 10))) == (1,2,3,9,10)
 @test flatten(Tuple, reconstruct(nestvoid, flatten(Tuple, nestvoid))) == flatten(Tuple, nestvoid) 
+@test flatten(Tuple, retype(nestvoid, flatten(Tuple, nestvoid))) == flatten(Tuple, nestvoid) 
+@test flatten(Tuple, update!(munestvoid, flatten(Tuple, munestvoid))) == flatten(Tuple, munestvoid) 
+
+
+# Test unit stripping functions
+
+ufoo = Foo(1.0u"m", 2.0u"g", 3.0u"s")
+unest = Nest(Foo(1u"m",2u"g",3u"s"), 4.0, 5.0u"kPa")
+unesttuple = NestTuple((ufoo, unest), 9, 10u"mol*L^-1")
+
+@test ulflatten(ufoo) === (1.0,2.0,3.0)
+@test ulflatten(unest) === (1,2,3,4.0,5.0)
+
+@test ulflatten(Vector, ulreconstruct(ufoo, ulflatten(Vector, ufoo))) == ulflatten(Vector, ufoo)
+@test ulflatten(Tuple, ulreconstruct(ufoo, ulflatten(Tuple, ufoo))) === ulflatten(Tuple, ufoo)
+
+@test flatten(retype(ufoo, flatten(ufoo))) === flatten(ufoo)
+@test flatten(retype(ufoo, (1u"g",2u"m",3.0u"s"))) === (1u"g",2u"m",3.0u"s")
+
+umufoo = MuFoo(1.0u"g", 2.0u"kPa", 3.0)
+@test ulflatten(Tuple, ulupdate!(umufoo, ulflatten(Tuple, umufoo) .* 7)) == (14.0,)
+umunest = MuNest(MuFoo(1u"s",2u"kg",3), 4.0, 5.0u"K")
+@test ulflatten(ulupdate!(umunest, ulflatten(umunest) .* 7)) == (14, 28.0)
+
+# With void
+unestvoid = Nest(Foo(1u"g",2,3), nothing, nothing)
+umunestvoid = MuNest(MuFoo(1u"g",2,3), nothing, nothing)
+@test ulflatten(Tuple, unestvoid) == (1,2,3)
+@test ulflatten(Tuple, (Nest(Foo(1u"g",2,3), nothing, nothing), Nest(Foo(nothing, nothing, nothing), 9, 10))) == (1,2,3,9,10)
+@test ulflatten(Tuple, ulreconstruct(unestvoid, ulflatten(Tuple, unestvoid))) == ulflatten(Tuple, unestvoid) 
+@test ulflatten(Tuple, ulupdate!(umunestvoid, ulflatten(Tuple, umunestvoid))) == ulflatten(Tuple, umunestvoid) 
+
 
 ##############################################################################
 # Benchmarks
@@ -212,4 +249,4 @@ print("flatten to tuple naive: ")
 print("reconstruct vector: ")
 @btime reconstruct($foo, $datavector)
 print("reconstruct vector naive: ")
-@btime construct_vector_naive(Foo{Float64}, $datavector)
+@btime construct_vector_naive(Foo{Float64,Float64,Float64}, $datavector)
