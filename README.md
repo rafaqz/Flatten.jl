@@ -41,27 +41,27 @@ Let's define a data type:
 
 ```julia
 julia> 
-type Foo{T}
+struct Foo{T}
    a::T
    b::T
    c::T
 end
 
-julia> f = Foo(1,2,3)
+julia> foo = Foo(1,2,3)
 Foo{Int64}(1,2,3)
 ```
 
 Now we can flatten this data type into a tuple:
 
 ```julia
-julia> flatten(Tuple, f)
+julia> flatten(Tuple, foo)
 (1, 2, 3)
 ```
 
 or a vector:
 
 ```julia
-julia> flatten(Vector, f)
+julia> flatten(Vector, foo)
 3-element Array{Int64,1}:
  1
  2
@@ -69,37 +69,32 @@ julia> flatten(Vector, f)
 ```
 
 We can also reconstruct the data to recover the original structure.
-`construct()` rebuilds from a type and tuple containing values for every field.
-
-```julia
-julia> construct(Foo{Int64}, (1,2,3))
-Foo{Int64}(1,2,3)
-```
 
 `reconstruct()` rebuilds from an object and a partial tuple or vector, useful
 when some fields have been deactivated with the @flattenable macro.
 
 ```julia
-julia> construct(foo, (1, 2, 3))
+
+julia> reconstruct(foo, (1, 2, 3))
 Foo{Int64}(1, 2, 3)
 ```
 
 Nested types work too:
 
 ```julia
-type Nested{T1, T2}
+struct Nested{T1, T2}
     f::Foo{T1}
     b::T2
     c::T2
 end
 
-julia> n = Nested(Foo(1,2,3), 4.0, 5.0)
+julia> nested = Nested(Foo(1,2,3), 4.0, 5.0)
 Nested{Int64,Float64}(Foo{Int64}(1,2,3),4.0,5.0)
 
-julia> flatten(Tuple, n)
+julia> flatten(Tuple, nested)
 (1, 2, 3, 4.0, 5.0)
 
-julia> flatten(Vector, n)
+julia> flatten(Vector, nested)
 5-element Array{Float64,1}:
  1.0
  2.0
@@ -107,10 +102,18 @@ julia> flatten(Vector, n)
  4.0
  5.0
 
-julia> construct(Nested{Int64,Int64}, (1, 2, 3, 4, 5))
+julia> reconstruct(nested, (1, 2, 3, 4, 5))
+Nested{Int64,Float64}(Foo{Int64}(1, 2, 3), 4, 5)
+```
 
+Reconstruct returns the same type as the original. If you want a new struct
+matching the passed in values, use `retype`.
+
+```
+julia> retype(nested, (1, 2, 3, 4, 5))
 Nested{Int64,Int64}(Foo{Int64}(1, 2, 3), 4, 5)
 ```
+
 
 Fields can be excluded from flattening with the `flattenable(struct, field)` method,
 easily defined using @flattenable on a struct. I'll also define a @foobar metadata to
@@ -124,23 +127,23 @@ import Flatten: flattenable
 
 @metadata foobar :nobar
 
-@flattenable @foobar struct Partial{T}
-    a::T | :foo | true
-    b::T | :foo | true
-    c::T | :foo | false
+@flattenable @foobar struct Partial{A,B,C}
+    a::A | :foo | true
+    b::B | :foo | true
+    c::C | :foo | false
 end
 
-@flattenable @foobar struct NestedPartial{P,T}
+@flattenable @foobar struct NestedPartial{P,A,B}
     np::P | :bar | true
-    nb::T | :bar | true
-    nc::T | :bar | false
+    nb::A | :bar | true
+    nc::B | :bar | false
 end
 
-julia> partial = Partial(1.0, 2.0, 3.0)                                      
-Partial{Float64}(1.0, 2.0, 3.0)                                              
-                                                                             
-julia> nestedpartial = NestedPartial(Partial(1.0, 2.0, 3.0), 4, 5)           
-NestedPartial{Partial{Float64},Int64}(Partial{Float64}(1.0, 2.0, 3.0), 4, 5) 
+julia> nestedpartial = NestedPartial(Partial(1.0, 2.0, 3.0), 4, 5)
+NestedPartial{Partial{Float64,Float64,Float64},Int64,Int64}(Partial{Float64,Float64,Float64}(1.0, 2.0, 3.0), 4, 5)
+
+julia> nestedpartial = NestedPartial(Partial(1.0, 2.0, 3.0), 4, 5)
+NestedPartial{Partial{Float64,Float64,Float64},Int64,Int64}(Partial{Float64,Float64,Float64}(1.0, 2.0, 3.0), 4, 5)
 
 julia> flatten(Tuple, nestedpartial)
 (1.0, 2.0, 4)
@@ -152,17 +155,33 @@ julia> flatten(Vector, nestedpartial)
  4.0
 ```
 
+Of course, `reconstruct` and `retype` also respect `flattenable` fields: 
+
+```
+julia> reconstruct(nestedpartial, (1, 2, 4.0))
+NestedPartial{Partial{Float64,Float64,Float64},Int64,Int64}(Partial{Float64,Float64,Float64}(1.0, 2.0, 3.0), 4, 5)
+
+julia> retype(nestedpartial, (1, 2, 4.0))
+NestedPartial{Partial{Int64,Float64,Float64},Float64,Int64}(Partial{Int64,Float64,Float64}(1, 2.0, 3.0), 4.0, 5)
+```
+
+Note: use Tuples of parameters when using mixed types. Vectors will not be type
+stable, and `reconstruct` will be slow.
+
+
+
 We can also flatten the @foobar metadata defined above:
 
 ```julia
-julia> metaflatten(typeof(partial), foobar) 
+julia> metaflatten(partial, foobar) 
 (:foo, :foo)
 
 julia> metaflatten(nestedpartial, foobar)
 (:foo, :foo, :bar)
 ```
 
-And flatten the fieldnames:
+
+Or flatten the fieldnames:
 ```julia
 julia> fieldnameflatten(nestedpartial)                                            
 (:a, :b, :nb) 
