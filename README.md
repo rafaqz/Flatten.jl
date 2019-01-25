@@ -35,12 +35,11 @@ This basis of this package was originally written by Robin Deits (@rdeits). The 
 owes much to discussions and ideas from Jan Weidner (@jw3126) and Robin Deits. 
 
 
-## Examples
+## Basic struct flattening
 
 Let's define a data type:
 
 ```julia
-julia> 
 struct Foo{T}
    a::T
    b::T
@@ -71,7 +70,7 @@ julia> flatten(Vector, foo)
 We can also reconstruct the data to recover the original structure.
 
 `reconstruct()` rebuilds from an object and a partial tuple or vector, useful
-when some fields have been deactivated with the @flattenable macro.
+when some fields have been deactivated with the `@flattenable` macro.
 
 ```julia
 
@@ -114,10 +113,44 @@ julia> retype(nested, (1, 2, 3, 4, 5))
 Nested{Int64,Int64}(Foo{Int64}(1, 2, 3), 4, 5)
 ```
 
+## Updating mutable structs
 
-Fields can be excluded from flattening with the `flattenable(struct, field)` method,
-easily defined using @flattenable on a struct. I'll also define a @foobar metadata to
-use later:
+If we want to update mutable structs in place, you can use `update!`:
+
+```julia
+mutable struct MutableFoo1{T}
+   a::T
+   b::T
+   c::T
+end
+
+julia> mufoo = MutableFoo(1,2,3)
+MuFoo{Int64}(1,2,3)
+
+julia> update!(mufoo, (2,4,6))
+MutableFoo{Int64}(2, 4, 6)
+```
+
+## Stripping units
+
+An array of floats is a most common input for optimisers
+and other numerical tools, and unitful parameters can make this tricky.
+
+Loading [Unitful.jl](https://github.com/ajkeller34/Unitful.jl),
+`ulflatten()`, `ulreconstruct()` and `ulretype()` will be available for
+unit-less flattening. This greatly improves the speed of flattening unitful
+structs to Vector and reconstructing them, as it will be type stable. It then
+allows reconstructing the vector back to the same unit types given a Vector of
+floats. 
+
+
+## Excluding fields from flattening
+
+
+Fields can be excluded from flattening with the `flattenable(struct, field)`
+method, easily defined using `@flattenable` from
+[FieldMetadata.jl](https://github.com/rafaqz/FieldMetadata.jl). I'll
+also define a `@foobar` metadata to use later:
 
 
 ```julia
@@ -155,7 +188,7 @@ julia> flatten(Vector, nestedpartial)
  4.0
 ```
 
-Of course, `reconstruct` and `retype` also respect `flattenable` fields: 
+Of course, `reconstruct` and `retype` and `update!` also respect `flattenable` fields: 
 
 ```
 julia> reconstruct(nestedpartial, (1, 2, 4.0))
@@ -165,12 +198,13 @@ julia> retype(nestedpartial, (1, 2, 4.0))
 NestedPartial{Partial{Int64,Float64,Float64},Float64,Int64}(Partial{Int64,Float64,Float64}(1, 2.0, 3.0), 4.0, 5)
 ```
 
-Note: use Tuples of parameters when using mixed types. Vectors will not be type
-stable, and `reconstruct` will be slow.
+*Note: use Tuples of parameters when using mixed types. Vectors of mixed
+type will not be type-stable, and Flatten.jl methods will be slow.*
 
 
+## Meta flattening
 
-We can also flatten the @foobar metadata defined above:
+We can also flatten the @foobar metadata defined earlier:
 
 ```julia
 julia> metaflatten(partial, foobar) 
