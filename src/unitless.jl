@@ -17,7 +17,7 @@ ulreconstruct(::T, data, n) where T <: Unitful.Quantity = (unit(T) * data[n],), 
 
 " Update a mutable object with partial Tuple or Vector data"
 ulupdate!(t, data) = begin
-    ulupdate!(t, data, 1)[1][1]
+    ulupdate!(t, data, 1)
     t
 end
 ulupdate!(::Nothing, data, n) = (nothing,), n

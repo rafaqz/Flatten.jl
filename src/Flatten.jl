@@ -35,7 +35,8 @@ nested(T::Type, P::Type, expr_builder, expr_combiner, funcname) =
 default_combiner(T, expressions) = Expr(:tuple, expressions...)
 
 
-flatten_expr(T, fname, funcname) = quote
+
+flatten_builder(T, fname, funcname) = quote
     if flattenable($T, Val{$(QuoteNode(fname))})
         $funcname(getfield(t, $(QuoteNode(fname))))
     else
@@ -43,7 +44,7 @@ flatten_expr(T, fname, funcname) = quote
     end
 end
 
-flatten_inner(T, funcname) = nested(T, flatten_expr, default_combiner, funcname)
+flatten_inner(T, funcname) = nested(T, flatten_builder, default_combiner, funcname)
 
 "Flattening. Flattens a nested type to a Tuple or Vector"
 flatten(::Type{V}, t) where V <: AbstractVector = V([flatten(t)...])
@@ -53,7 +54,8 @@ flatten(x::Number) = (x,)
 @generated flatten(t) = flatten_inner(t, :flatten)
 
 
-metaflatten_expr(T, fname, funcname) = quote
+
+metaflatten_builder(T, fname, funcname) = quote
     if flattenable($T, Val{$(QuoteNode(fname))})
         $funcname(getfield(t, $(QuoteNode(fname))), func, $T, Val{$(QuoteNode(fname))})
     else
@@ -61,7 +63,7 @@ metaflatten_expr(T, fname, funcname) = quote
     end
 end
 
-metaflatten_inner(T::Type, funcname) = nested(T, metaflatten_expr, default_combiner, funcname)
+metaflatten_inner(T::Type, funcname) = nested(T, metaflatten_builder, default_combiner, funcname)
 
 " Tag flattening. Flattens data attached to a field by methods of a passed in function"
 metaflatten(::Type{Tuple}, t, func) = metaflatten(t, func)
@@ -93,7 +95,8 @@ parenttypeflatten(T::Type, t) = metaflatten(T, t, fieldparenttype_meta)
 parenttypeflatten(t) = parenttypeflatten(Tuple, t)
 
 
-reconstruct_expr(T, fname, funcname) = quote
+
+reconstruct_builder(T, fname, funcname) = quote
     if flattenable($T, Val{$(QuoteNode(fname))})
         val, n = $funcname(getfield(t, $(QuoteNode(fname))), data, n)
         val
@@ -105,28 +108,24 @@ end
 reconstruct_combiner(T, expressions) = :(($(Expr(:call, :($T), expressions...)),), n)
 reconstruct_combiner(T::Type{<:Tuple}, expressions) = :(($(Expr(:tuple, expressions...)),), n)
 
-reconstruct_inner(::Type{T}, funcname) where T = nested(T, reconstruct_expr, reconstruct_combiner, funcname)
+reconstruct_inner(::Type{T}, funcname) where T = nested(T, reconstruct_builder, reconstruct_combiner, funcname)
 
 " Reconstruct an object from partial Tuple or Vector data and another object"
 reconstruct(t, data) = reconstruct(t, data, 1)[1][1]
 reconstruct(::Nothing, data, n) = (nothing,), n
+
+# Return a value from the data vector/tuple
+# Also increment vector position counter - the returned n + 1 becomes the new n
 reconstruct(::Number, data, n) = (data[n],), n + 1 
 @generated reconstruct(t, data, n) = reconstruct_inner(t, :reconstruct)
 
 
-retype_expr(T, fname, funcname) = quote
-    if flattenable($T, Val{$(QuoteNode(fname))})
-        val, n = $funcname(getfield(t, $(QuoteNode(fname))), data, n)
-        val
-    else
-        (getfield(t, $(QuoteNode(fname))),)
-    end
-end
 
 retype_combiner(T, expressions) = :(($(Expr(:call, :($T.name.wrapper), expressions...)),), n)
-retype_combiner(T::Type{<:Tuple}, expressions) = :(($(Expr(:tuple, expressions...)),), n)
+retype_combiner(T::Type{<:Tuple}, expressions) = reconstruct_combiner(T, expressions)
 
-retype_inner(::Type{T}, funcname) where T = nested(T, retype_expr, retype_combiner, funcname)
+# Reuse the reconstruct expression builder
+retype_inner(::Type{T}, funcname) where T = nested(T, reconstruct_builder, retype_combiner, funcname)
 
 " Retype an object from partial Tuple or Vector data and another object"
 retype(t, data) = retype(t, data, 1)[1][1]
@@ -135,7 +134,8 @@ retype(::Number, data, n) = (data[n],), n + 1
 @generated retype(t, data, n) = retype_inner(t, :retype)
 
 
-update_expr(T, fname, funcname) = quote
+
+update_builder(T, fname, funcname) = quote
     if flattenable($T, Val{$(QuoteNode(fname))})
         val, n = $funcname(getfield(t, $(QuoteNode(fname))), data, n)
         setfield!(t, $(QuoteNode(fname)), val[1]) 
@@ -143,17 +143,22 @@ update_expr(T, fname, funcname) = quote
     ()
 end
 
+# Use the reconstruct builder for tuples, they're immutable
+update_builder(T::Type{<:Tuple}, fname, funcname) = reconstruct_builder(T, fname, funcname)
+
 update_combiner(T, expressions) = :($(Expr(:tuple, expressions...)); ((t,), n))
+update_combiner(T::Type{<:Tuple}, expressions) = reconstruct_combiner(T, expressions)
 
-update_inner(::Type{T}, funcname) where T = nested(T, update_expr, update_combiner, funcname)
+update_inner(::Type{T}, funcname) where T = nested(T, update_builder, update_combiner, funcname)
 
-" Update a mutable object with partial Tuple or Vector data"
+" Update a mutable object with a Tuple or Vector"
 update!(t, data) = begin
-    update!(t, data, 1)[1][1]
+    update!(t, data, 1)
     t
 end
 update!(::Nothing, data, n) = (nothing,), n
 update!(::Number, data, n) = (data[n],), n + 1 
 @generated update!(t::T, data, n) where T = update_inner(T, :update!)
+
 
 end # module
