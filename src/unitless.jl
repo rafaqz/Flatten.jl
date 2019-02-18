@@ -1,3 +1,5 @@
+using .Unitful
+export ulflatten, ulreconstruct, ulupdate!
 
 "Unitless flattening. Flattens a nested type to a Tuple or Vector"
 ulflatten(::Type{V}, t) where V <: AbstractVector = V([ulflatten(t)...])

@@ -8,11 +8,7 @@ export @flattenable, @reflattenable, flattenable, flatten, reconstruct, retype, 
 
 # Optionally load Unitful and unlittless falttening 
 function __init__()
-    @require Unitful="1986cc42-f94f-5a68-af5c-568840ba703d" begin
-        using Unitful
-        export ulflatten, ulreconstruct, ulupdate!
-        include("unitless.jl")
-    end
+    @require Unitful="1986cc42-f94f-5a68-af5c-568840ba703d" include("unitless.jl")
 end
 
 
