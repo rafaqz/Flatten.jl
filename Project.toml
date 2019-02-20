@@ -1,0 +1,16 @@
+name = "Flatten"
+uuid = "4c728ea3-d9ee-5c9a-9642-b6f7d7dc04fa"
+authors = ["Rafael Schouten <rafaelschouten@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+FieldMetadata = "bf96fef3-21d2-5d20-8afa-0e7d4c32a885"
+Requires = "ae029012-a4dd-5104-9daa-d747884805df"
+
+[extras]
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["BenchmarkTools", "Unitful", "Test"]
