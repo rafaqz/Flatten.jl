@@ -220,3 +220,13 @@ Or flatten the fieldnames:
 julia> fieldnameflatten(nestedpartial)                                            
 (:a, :b, :nb) 
 ```
+
+
+Currently flatten only uses numeric types (in `Number`), and actively ignores
+`Nothing` and `AbstractArray`. All other types will be searched recursively, looking for
+fields with usable types. To add usable, recursed, or ignored types, override the 
+`Flatten.action` method, returning `Use()`, `Recurse()`, or `Ignore()`:
+
+```julia
+Flatten.action(::DataFrame) = Flatten.Ignore()
+```        
