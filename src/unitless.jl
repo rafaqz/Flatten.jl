@@ -4,8 +4,7 @@ export ulflatten, ulreconstruct, ulupdate!
 
 # Unitless flatten
 
-ulflatten(::Ignore, x) = ()
-ulflatten(::Use, x) = (x,) 
+ulflatten(action::FlattenAction, x) = flatten(action, x)
 ulflatten(::Use, x::Unitful.Quantity) = (x.val,) 
 @generated ulflatten(::Recurse, t) = flatten_inner(t, :ulflatten)
 
@@ -18,8 +17,7 @@ ulflatten(t) = ulflatten(action(t), t)
 
 # Unitless reconstruct
 
-ulreconstruct(::Ignore, x, data, n) = (x,), n
-ulreconstruct(::Use, x, data, n) = (data[n],), n + 1 
+ulreconstruct(action::FlattenAction, x, data, n) = reconstruct(action, x, data, n) 
 ulreconstruct(::Use, ::T, data, n) where T <: Unitful.Quantity = (unit(T) * data[n],), n + 1
 @generated ulreconstruct(::Recurse, t, data, n) = reconstruct_inner(t, :ulreconstruct)
 
@@ -29,8 +27,7 @@ ulreconstruct(t, data) = ulreconstruct(action(t), t, data, 1)[1][1]
 
 # Unitless update
 
-ulupdate!(::Ignore, x, data, n) = (x,), n
-ulupdate!(::Use, x, data, n) = (data[n],), n + 1 
+ulupdate!(action::FlattenAction, x, data, n) = update!(action, x, data, n)
 ulupdate!(::Use, ::T, data, n) where T <: Unitful.Quantity = (unit(T) * data[n],), n + 1
 @generated ulupdate!(::Recurse, t::T, data, n) where T = update_inner(T, :ulupdate!)
 

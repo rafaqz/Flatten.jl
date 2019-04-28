@@ -11,9 +11,9 @@ function __init__()
     @require Unitful="1986cc42-f94f-5a68-af5c-568840ba703d" include("unitless.jl")
 end
 
-# Connect types to actions for all flattenable functions
-abstract type FlattenAction end
 
+# Connect types to actions
+abstract type FlattenAction end
 struct Use <: FlattenAction end
 struct Ignore <: FlattenAction end
 struct Recurse <: FlattenAction end
@@ -22,6 +22,7 @@ action(::Number) = Use()
 action(::Nothing) = Ignore()
 action(::AbstractArray) = Ignore()
 action(x) = Recurse()
+
 
 # Generalised nested struct walker 
 nested(T::Type, expr_builder, expr_combiner, funcname) = 
@@ -145,6 +146,7 @@ metaflatten(::Type{V}, t, func) where V <: AbstractVector = [metaflatten(t, func
 
 metaflatten(::Ignore, x, func, P, fname) = ()
 metaflatten(::Use, x, func, P, fname) = (func(P, fname),)
+# TODO what about mixed type tuples?
 metaflatten(::Recurse, xs::NTuple{N,Number}, func, P, fname) where N = map(x -> func(P, fname), xs)
 @generated metaflatten(::Recurse, t, func, P, fname) = metaflatten_inner(t, :metaflatten)
 
