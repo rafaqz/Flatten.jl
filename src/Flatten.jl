@@ -6,7 +6,7 @@ import FieldMetadata: @flattenable, @reflattenable, flattenable
 export @flattenable, @reflattenable, flattenable, flatten, reconstruct, retype, update!, 
        metaflatten, fieldnameflatten, parentflatten, fieldtypeflatten, parenttypeflatten 
 
-# Optionally load Unitful and unlittless falttening 
+# Optionally load Unitful and unlitless falttening 
 function __init__()
     @require Unitful="1986cc42-f94f-5a68-af5c-568840ba703d" include("unitless.jl")
 end
@@ -23,6 +23,9 @@ action(::Nothing) = Ignore()
 action(::AbstractArray) = Ignore()
 action(x) = Recurse()
 
+const USE = Number
+const IGNORE = Union{Nothing, AbstractArray}
+
 
 # Generalised nested struct walker 
 nested(T::Type, expr_builder, expr_combiner, funcname) = 
@@ -37,7 +40,7 @@ default_combiner(T, expressions) = Expr(:tuple, expressions...)
 
 flatten_builder(T, fname, funcname) = quote
     if flattenable($T, Val{$(QuoteNode(fname))})
-        $funcname(getfield(t, $(QuoteNode(fname))))
+        $funcname(use, ignore, getfield(t, $(QuoteNode(fname))))
     else
         ()
     end
@@ -45,15 +48,17 @@ end
 
 flatten_inner(T, funcname) = nested(T, flatten_builder, default_combiner, funcname)
 
-flatten(::Ignore, x) = ()
-flatten(::Use, x) = (x,) 
-@generated flatten(::Recurse, t) = flatten_inner(t, :flatten)
+flatten(use::Type{U}, ignore::Type{I}, x::U) where {U,I} = (x,)
+flatten(use::Type{U}, ignore::Type{I}, x::I) where {U,I} = ()
+@generated flatten(use, ignore, t) = flatten_inner(t, :flatten)
+
+# @generated flatten(::Recurse, t) = flatten_inner(t, :flatten)
 
 flatten(::Type{V}, t) where V <: AbstractVector = V([flatten(t)...])
 flatten(::Type{Tuple}, t) = flatten(t)
 
 "Flattening. Flattens a nested type to a Tuple or Vector"
-flatten(t) = flatten(action(t), t) 
+flatten(t) = flatten(USE, IGNORE, t) 
 
 
 # Reconstruct

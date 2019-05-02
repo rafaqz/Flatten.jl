@@ -30,6 +30,8 @@ nest = Nest(Foo(1,2,3), 4.0, 5.0)
 nesttuple = Nest((foo, nest), 9, 10)
 
 # Test flattening
+@test flatten(String, Nothing, Foo(1, 2, "3")) === ("3",)
+
 @test flatten(Vector, Foo(1,2,3)) == Int[1,2,3]
 @test typeof(flatten(Vector, Foo(1,2,3))) == Array{Int, 1}
 @test flatten(Tuple, Foo(1,2,3)) == (1,2,3)
@@ -46,9 +48,6 @@ nesttuple = Nest((foo, nest), 9, 10)
 @test flatten(Tuple, reconstruct(nest, flatten(Tuple, nest))) == flatten(Tuple, nest)
 @test flatten(reconstruct((nest, nest), flatten((nest, nest)))) == flatten((nest, nest))
 @test flatten(reconstruct(nesttuple, flatten(nesttuple))) == flatten(nesttuple)
-
-Flatten.reconstruct_inner(typeof((nest, nest)), typeof(flatten((nest, nest))))
-Flatten.reconstruct_inner(typeof(nesttuple), typeof(flatten(nesttuple)))
 
 @test typeof(reconstruct(foo, flatten(Tuple, foo))) <: Foo
 @test typeof(reconstruct(nest, flatten(Tuple, nest))) <: Nest
@@ -152,6 +151,7 @@ end
 @test flatten(Vector, reconstruct(nestedpartial, flatten(Vector, nestedpartial))) == flatten(Vector, nestedpartial)
 @test flatten(Tuple, retype(nestedpartial, flatten(Tuple, nestedpartial))) == flatten(Tuple, nestedpartial)
 @inferred flatten(Tuple, reconstruct(nestedpartial, flatten(Tuple, nestedpartial)))
+
 
 @test metaflatten(foo, flattenable) == (true, true, true)
 @test metaflatten(nest, flattenable) == (true, true, true, true, true)

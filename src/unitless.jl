@@ -4,15 +4,21 @@ export ulflatten, ulreconstruct, ulupdate!
 
 # Unitless flatten
 
-ulflatten(action::FlattenAction, x) = flatten(action, x)
-ulflatten(::Use, x::Unitful.Quantity) = (x.val,) 
-@generated ulflatten(::Recurse, t) = flatten_inner(t, :ulflatten)
+# ulflatten(action::FlattenAction, x) = flatten(action, x)
+# ulflatten(::Use, x::Unitful.Quantity) = (x.val,) 
+# @generated ulflatten(::Recurse, t) = flatten_inner(t, :ulflatten)
 
 ulflatten(::Type{V}, t) where V <: AbstractVector = V([ulflatten(t)...])
 ulflatten(::Type{Tuple}, t) = ulflatten(t)
 
 "Unitless flattening. Flattens a nested type to a Tuple or Vector"
-ulflatten(t) = ulflatten(action(t), t)
+ulflatten(t) = ulflatten(USE, IGNORE, t)
+
+ulflatten(use::U, ignore, x::Unitful.Quantity) where {U<:Number} = (x.val,) 
+ulflatten(use::Type{U}, ignore::Type{I}, x::U) where {U<:Number,I} = (x,)
+ulflatten(use::Type{U}, ignore::Type{I}, x::I) where {U<:Number,I} = ()
+@generated ulflatten(use, ignore, t) = flatten_inner(t, :ulflatten)
+
 
 
 # Unitless reconstruct
