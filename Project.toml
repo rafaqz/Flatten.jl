@@ -1,11 +1,14 @@
 name = "Flatten"
 uuid = "4c728ea3-d9ee-5c9a-9642-b6f7d7dc04fa"
 authors = ["Rafael Schouten <rafaelschouten@gmail.com>"]
-version = "0.1.0"
+version = "0.1.1"
 
 [deps]
 FieldMetadata = "bf96fef3-21d2-5d20-8afa-0e7d4c32a885"
 Requires = "ae029012-a4dd-5104-9daa-d747884805df"
+
+[compat]
+julia = "0.7, 1.0"
 
 [extras]
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
