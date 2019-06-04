@@ -63,7 +63,7 @@ to further discussions and ideas from Jan Weidner (@jw3126) and Robin Deits.
 """
 module Flatten
 
-using FieldMetadata, Requires
+using FieldMetadata
 import FieldMetadata: @flattenable, @reflattenable, flattenable
 
 export @flattenable, @reflattenable, flattenable, flatten, reconstruct, update!,
