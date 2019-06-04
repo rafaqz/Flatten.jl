@@ -4,7 +4,7 @@ makedocs(
     checkdocs = :all,
     modules = [Flatten],
     sitename = "Flatten.jl",
-    format = :html,
+    format = Documenter.HTML(),
     highlightsig = true,
     pages = Any[
         "Flatten" => "index.md",

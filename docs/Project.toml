@@ -1,3 +1,4 @@
 [deps]
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 Flatten = "4c728ea3-d9ee-5c9a-9642-b6f7d7dc04fa"
+FieldMetadata = "bf96fef3-21d2-5d20-8afa-0e7d4c32a885"
