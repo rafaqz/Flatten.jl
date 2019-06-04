@@ -340,7 +340,7 @@ julia> using Flatten, FieldMetadata
 
 julia> import Flatten: flattenable
 
-julia> @metadata foobar :foo
+julia> @metadata foobar :foo;
 
 julia> @foobar struct Foo{A,B,C}
            a::A | :bar
