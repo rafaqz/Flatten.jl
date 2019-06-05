@@ -70,9 +70,15 @@ export @flattenable, @reflattenable, flattenable, flatten, reconstruct, update!,
        metaflatten, fieldnameflatten, parentnameflatten, fieldtypeflatten, parenttypeflatten
 
 
-# Default behaviour when no use/ignore args are given
+# Default behaviour when no flattentrait/use/ignore args are given
 const USE = Number
 const IGNORE = AbstractArray
+const FLATTENTRAIT = flattenable
+
+defaultargs(args...) = defaultargs(FLATTENTRAIT, args...)
+defaultargs(flattentrait::Function) = (flattentrait, USE, IGNORE)
+defaultargs(flattentrait::Function, use) = (flattentrait, use, IGNORE)
+defaultargs(flattentrait::Function, use, ignore) = (flattentrait, use, ignore)
 
 
 # Generalised nested struct walker
@@ -80,8 +86,6 @@ nested(T::Type, expr_builder, expr_combiner, action) =
     nested(T, Nothing, expr_builder, expr_combiner, action)
 nested(T::Type, P::Type, expr_builder, expr_combiner, action) =
     expr_combiner(T, [Expr(:..., expr_builder(T, fn, action)) for fn in fieldnames(T)])
-
-default_combiner(T, expressions) = Expr(:tuple, expressions...)
 
 
 """
@@ -91,7 +95,6 @@ Add methods to define constructors for types with custom type parameters.
 @generated constructor_of(::Type{T}) where T = getfield(T.name.module, Symbol(T.name.name))
 constructor_of(::Type{T}) where T<:Tuple = :tuple
 constructor_of(T::UnionAll) = constructor_of(T.body)
-
 
 
 """
@@ -171,14 +174,12 @@ flatten_builder(T, fname, action) = quote
     end
 end
 
+flatten_combiner(T, expressions) = Expr(:tuple, expressions...)
+
 flatten_inner(T, action) =
-    nested(T, flatten_builder, default_combiner, action)
+    nested(T, flatten_builder, flatten_combiner, action)
 
-flatten(t) = flatten(t, flattenable)
-flatten(t, args...) = flatten(t, flattenable, args...)
-flatten(t, ft::Function) = flatten(t, ft, USE)
-flatten(t, ft::Function, use) = flatten(t, ft, use, IGNORE)
-
+flatten(t, args...) = flatten(t, defaultargs(args...)...)
 flatten(x::I, ft::Function, use::Type{U}, ignore::Type{I}) where {U,I} = ()
 flatten(x::U, ft::Function, use::Type{U}, ignore::Type{I}) where {U,I} = (x,)
 @generated flatten(t, flattentrait::Function, use, ignore) = flatten_inner(t, flatten)
@@ -231,20 +232,12 @@ reconstruct_inner(::Type{T}, action) where T =
     nested(T, reconstruct_builder, reconstruct_combiner, action)
 
 
-reconstruct(t, data) = reconstruct(t, data, flattenable)
-reconstruct(t, data, args...) = reconstruct(t, data, flattenable, args...)
-reconstruct(t, data, ft::Function) = reconstruct(t, data, ft, USE)
-reconstruct(t, data, ft::Function, use) = reconstruct(t, data, ft, use, IGNORE)
-# Need to extract the final return value from the nested tuple
-reconstruct(t, data, ft::Function, use, ignore) =
-    reconstruct(t, data, ft, use, ignore, 1)[1][1]
-
+# Run from first data index and extract the final return value from the nested tuple
+reconstruct(t, data, args...) = reconstruct(t, data, defaultargs(args...)..., firstindex(data))[1][1]
 # Return value unmodified
-reconstruct(x::I, data, ft::Function, use::Type{U}, ignore::Type{I}, n) where {U,I} =
-    (x,), n
+reconstruct(x::I, data, ft::Function, use::Type{U}, ignore::Type{I}, n) where {U,I} = (x,), n
 # Return value from data. Increment position counter -  the returned n + 1 becomes n
-reconstruct(x::U, data, ft::Function, use::Type{U}, ignore::Type{I}, n) where {U,I} =
-    (data[n],), n + 1
+reconstruct(x::U, data, ft::Function, use::Type{U}, ignore::Type{I}, n) where {U,I} = (data[n],), n + 1
 @generated reconstruct(t, data, flattentrait::Function, use, ignore, n) =
     reconstruct_inner(t, reconstruct)
 
@@ -306,12 +299,8 @@ update_combiner(T::Type{<:Tuple}, expressions) = reconstruct_combiner(T, express
 update_inner(::Type{T}, action) where T =
     nested(T, update_builder, update_combiner, action)
 
-update!(t, data) = update!(t, data, flattenable)
-update!(t, data, args...) = update!(t, data, flattenable, args...)
-update!(t, data, ft::Function) = update!(t, data, ft, USE)
-update!(t, data, ft::Function, use) = update!(t, data, ft, use, IGNORE)
-update!(t, data, ft::Function, use, ignore) = begin
-    update!(t, data, ft, use, ignore, firstindex(data))[1][1]
+update!(t, data, args...) = begin
+    update!(t, data, defaultargs(args...)..., firstindex(data))
     t
 end
 update!(x::I, data, ft::Function, use::Type{U}, ignore::Type{I}, n) where {U,I} = (x,), n
@@ -369,15 +358,10 @@ metaflatten_builder(T, fname, action) = quote
 end
 
 metaflatten_inner(T::Type, action) =
-    nested(T, metaflatten_builder, default_combiner, action)
+    nested(T, metaflatten_builder, flatten_combiner, action)
 
-metaflatten(t, func::Function) = metaflatten(t, func, flattenable)
-metaflatten(t, func::Function, args...) = metaflatten(t, func, flattenable, args...)
-metaflatten(t, func::Function, ft::Function) = metaflatten(t, func, ft, USE)
-metaflatten(t, func::Function, ft::Function, use) = metaflatten(t, func, ft, use, IGNORE)
-metaflatten(t, func::Function, ft::Function, use, ignore) =
-    metaflatten(t, func::Function, ft::Function, use, ignore, Nothing, Val{:none})
-
+metaflatten(t, func::Function, args...) = 
+    metaflatten(t, func, defaultargs(args...)..., Nothing, Val{:none})
 metaflatten(x::I, func::Function, ft::Function, use::Type{U}, ignore::Type{I}, P, fname) where {U,I} = ()
 metaflatten(x::U, func::Function, ft::Function, use::Type{U}, ignore::Type{I}, P, fname) where {U,I} =
     (func(P, fname),)
