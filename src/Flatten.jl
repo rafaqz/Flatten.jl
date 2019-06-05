@@ -46,18 +46,17 @@ to provide a `@flattenable` macro, allowing you to choose struct fields to inclu
 and remove from flattening -- defaulting to `true` for all fields.
 
 ```jldoctest
-julia> using Flatten
-julia> import Flatten: flattenable
+using Flatten
+import Flatten: flattenable
 
-julia> @flattenable struct Bar{X,Y}
-           x::X | true
-           y::Y | false
-       end;
+@flattenable struct Bar{X,Y}
+    x::X | true
+    y::Y | false
+end
 
-julia> fieldnameflatten(Bar(1, 2))
-(:x,)
+flatten(Bar(1, 2))
 
-julia> flatten(Bar(1, 2))
+# output
 (1,)
 ```
 Custom `@metadata` methods from FieldMetadata can be used, if they return a Bool. 
