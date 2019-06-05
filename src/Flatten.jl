@@ -1,15 +1,16 @@
 """
 Flatten.jl converts data between nested and flat structures, using `flatten()`,
 `reconstruct()` and `update!()` functions. This facilitates building modular,
-composed structs while allowing access to solvers and optimisers that require flat
-tyuples of parameters, or any other use case that requires extraction of a flat list
-of values from a nested type. Importantly it's type-stable and _very_ fast. 
+composable structs while allowing access to solvers and optimisers that require flat
+vectors of parameters -- or any other use case that requires extraction or modification 
+of a list of values from a nested type. Importantly it's type-stable and _very_ fast. 
 
 
-Flatten is also flexible. Overrides can be defined for custom types for all methods, while 
-custom querying methods and types can be used to extract and modify specify sets of fields
-from any nested type. Flatten allows 'querying' to extract some types and ignore others, 
-here using `flatten`:
+Flatten is also flexible. The types to use and ignore can be specified, and fields can be 
+ignored using field level traits like `flattenable` from FieldMetadata.jl. Method overrides 
+can also be defined for custom types. 
+
+Flatten allows 'querying' to extract some types and ignore others, here using `flatten`:
 
 ```jldoctest
 julia> using Flatten
@@ -41,25 +42,42 @@ The default type used is `Number`, while `AbstractArray` is ignored. These rules
 to all Flatten.jl functions.
 
 Flatten.jl also uses [FieldMetadata.jl](https://github.com/rafaqz/FieldMetadata.jl)
-to provide `@flattenable` macro choose struct fields to include and remove from
-flattened, defaulting to `true` for all fields. Custom `@metadata` methods from
-FieldMetadata can be used, if they return a Bool. You can also use cusom
-functions that follow the following form, returning a boolean:
+to provide a `@flattenable` macro, allowing you to choose struct fields to include 
+and remove from flattening -- defaulting to `true` for all fields.
+
+```jldoctest
+julia> using Flatten
+julia> import Flatten: flattenable
+
+julia> @flattenable struct Bar{X,Y}
+           x::X | true
+           y::Y | false
+       end;
+
+julia> fieldnameflatten(Bar(1, 2))
+(:x,)
+
+julia> flatten(Bar(1, 2))
+(1,)
+```
+Custom `@metadata` methods from FieldMetadata can be used, if they return a Bool. 
+You can also use cusom functions that follow the following form, returning a boolean:
 
 ```julia
 f(::Type, ::Type{Var{:fieldname}}) = false
 ```
 
 Flatten also provides `metaflatten()` to flatten any FieldMetadata.jl
-metadata for the fields `flatten()` returns. This can be useful for attaching information
-like descriptions or optional units to each field. Regular field data can also be collected 
-with convenience versions of metaflatten: `fieldnameflatten`, `parentflatten`, 
-`fieldtypeflatten` and `parenttypeflatten` functions provide lists of fieldnames and types 
-that may be useful for building parameter display tables.
+metadata for the same fields `flatten()` returns. This can be useful for attaching 
+information like descriptions or prior propability distributions to each field. 
+Regular field data can also be collected with convenience versions of metaflatten: 
+`fieldnameflatten`, `parentflatten`, `fieldtypeflatten` and `parenttypeflatten` 
+functions provide lists of fieldnames and types that may be useful for building 
+parameter display tables.
 
 
-This package was originally written by Robin Deits (@rdeits), and it owes much
-to further discussions and ideas from Jan Weidner (@jw3126) and Robin Deits.
+This package was started by Robin Deits (@rdeits), and its early development 
+owes much to discussions and ideas from Jan Weidner (@jw3126) and Robin Deits.
 """
 module Flatten
 
