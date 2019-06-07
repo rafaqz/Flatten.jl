@@ -92,11 +92,6 @@ const USE = Number
 const IGNORE = AbstractArray
 const FLATTENTRAIT = flattenable
 
-defaultargs(args...) = defaultargs(FLATTENTRAIT, args...)
-defaultargs(flattentrait::Function) = (flattentrait, USE, IGNORE)
-defaultargs(flattentrait::Function, use) = (flattentrait, use, IGNORE)
-defaultargs(flattentrait::Function, use, ignore) = (flattentrait, use, ignore)
-
 
 # Generalised nested struct walker
 nested(T::Type, expr_builder, expr_combiner, action) =
@@ -199,7 +194,10 @@ flatten_combiner(T, expressions) = Expr(:tuple, expressions...)
 flatten_inner(T, action) =
     nested(T, flatten_builder, flatten_combiner, action)
 
-flatten(obj, args...) = flatten(obj, defaultargs(args...)...)
+flatten(obj) = flatten(obj, flattenable)
+flatten(obj, args...) = flatten(obj, flattenable, args...)
+flatten(obj, ft::Function) = flatten(obj, ft, USE)
+flatten(obj, ft::Function, use) = flatten(obj, ft, use, IGNORE)
 flatten(x::I, ft::Function, use::Type{U}, ignore::Type{I}) where {U,I} = ()
 flatten(x::U, ft::Function, use::Type{U}, ignore::Type{I}) where {U,I} = (x,)
 @generated flatten(obj, flattentrait::Function, use, ignore) = flatten_inner(obj, flatten)
@@ -255,7 +253,13 @@ reconstruct_inner(::Type{T}, action) where T =
 
 
 # Run from first data index and extract the final return value from the nested tuple
-reconstruct(obj, data, args...) = reconstruct(obj, data, defaultargs(args...)..., firstindex(data))[1][1]
+reconstruct(obj, data) = reconstruct(obj, data, flattenable)
+reconstruct(obj, data, args...) = reconstruct(obj, data, flattenable, args...)
+reconstruct(obj, data, ft::Function) = reconstruct(obj, data, ft, USE)
+reconstruct(obj, data, ft::Function, use) = reconstruct(obj, data, ft, use, IGNORE)
+# Need to extract the final return value from the nested tuple
+reconstruct(obj, data, ft::Function, use, ignore) =
+    reconstruct(obj, data, ft, use, ignore, 1)[1][1]
 # Return value unmodified
 reconstruct(x::I, data, ft::Function, use::Type{U}, ignore::Type{I}, n) where {U,I} = (x,), n
 # Return value from data. Increment position counter -  the returned n + 1 becomes n
@@ -335,8 +339,12 @@ update_combiner(T::Type{<:Tuple}, expressions) = reconstruct_combiner(T, express
 update_inner(::Type{T}, action) where T =
     nested(T, update_builder, update_combiner, action)
 
-update!(obj, data, args...) = begin
-    update!(obj, data, defaultargs(args...)..., firstindex(data))
+update!(obj, data) = update!(obj, data, flattenable)
+update!(obj, data, args...) = update!(obj, data, flattenable, args...)
+update!(obj, data, ft::Function) = update!(obj, data, ft, USE)
+update!(obj, data, ft::Function, use) = update!(obj, data, ft, use, IGNORE)
+update!(obj, data, ft::Function, use, ignore) = begin
+    update!(obj, data, ft, use, ignore, firstindex(data))[1][1]
     obj
 end
 update!(x::I, data, ft::Function, use::Type{U}, ignore::Type{I}, n) where {U,I} = (x,), n
