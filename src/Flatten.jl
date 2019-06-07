@@ -410,8 +410,13 @@ end
 metaflatten_inner(T::Type, action) =
     nested(T, metaflatten_builder, flatten_combiner, action)
 
-metaflatten(obj, func::Function, args...) =
-    metaflatten(obj, func, defaultargs(args...)..., Nothing, Val{:none})
+metaflatten(obj, func::Function) = metaflatten(obj, func, flattenable)
+metaflatten(obj, func::Function, args...) = metaflatten(obj, func, flattenable, args...)
+metaflatten(obj, func::Function, ft::Function) = metaflatten(obj, func, ft, USE)
+metaflatten(obj, func::Function, ft::Function, use) = metaflatten(obj, func, ft, use, IGNORE)
+metaflatten(obj, func::Function, ft::Function, use, ignore) =
+    metaflatten(obj, func::Function, ft::Function, use, ignore, Nothing, Val{:none})
+
 metaflatten(x::I, func::Function, ft::Function, use::Type{U}, ignore::Type{I}, P, fname) where {U,I} = ()
 metaflatten(x::U, func::Function, ft::Function, use::Type{U}, ignore::Type{I}, P, fname) where {U,I} =
     (func(P, fname),)
