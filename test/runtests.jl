@@ -39,6 +39,7 @@ nesttuple = Nest((foo, nest), 9, 10)
 # Test flattening
 
 @test flatten(Foo(1,2,3)) == (1,2,3)
+@test flatten(Foo(1,2,3)) == (1,2,3)
 @test flatten(((1,2,3), (4,5))) == (1,2,3,4,5)
 @test flatten(Nest(Foo(1,2,3),4,5)) == (1,2,3,4,5)
 @test flatten((Nest(Foo(1,2,3),4,5), Nest(Foo(6,7,8), 9, 10))) == (1,2,3,4,5,6,7,8,9,10)
@@ -182,38 +183,22 @@ munestvoid = MuNest(MuFoo(1,2,3), nothing, nothing)
 ##############################################################################
 # Benchmarks
 
-function flatten_naive_vector(obj)
-    v = Vector(undef, length(fieldnames(typeof(obj))))
-    for (i, field) in enumerate(fieldnames(typeof(obj)))
-        v[i] = getfield(obj, field)
-    end
-    v
+struct BenchFoo{A,B,C}
+    a::A
+    b::B
+    c::C
 end
 
-function flatten_naive_tuple(obj)
-    v = (map(field -> getfield(obj, field), fieldnames(typeof(obj)))...,)
-end
+foo = BenchFoo(1.0, 2.0, 3.0)
 
-function construct_vector_naive(T, data)
-    T(data...)
-end
+b = @benchmark flatten($foo, $flattenable, Float64, Nothing)
+@test b.allocs == 0
 
-@test flatten_naive_vector(foo) == [flatten(foo)...]
-@test flatten_naive_tuple(foo) == flatten(foo)
+@test reconstruct(foo, (1.0, 2.0, 3.0)) == foo
+b = @benchmark reconstruct($foo, (1.0, 2.0, 3.0))
+@test b.allocs == 0
 
-foo = Foo(1.0, 2.0, 3.0)
-datavector = [flatten(foo)...]
-datatuple = flatten(foo)
-
-print("flatten to vector: ")
-@btime [flatten($foo)...]
-print("flatten to vector naive: ")
-@btime flatten_naive_vector($foo)
-print("flatten to tuple: ")
-@btime flatten($foo)
-print("flatten to tuple naive: ")
-@btime flatten_naive_tuple($foo)
-print("reconstruct vector: ")
-@btime reconstruct($foo, $datavector)
-print("reconstruct vector naive: ")
-@btime construct_vector_naive(Foo{Float64,Float64,Float64}, $datavector)
+v = [1.0, 2.0, 3.0]
+@test reconstruct(foo, v) == foo
+b = @benchmark reconstruct($foo, $v)
+@test b.allocs == 0
