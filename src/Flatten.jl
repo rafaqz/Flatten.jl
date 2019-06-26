@@ -86,10 +86,11 @@ import FieldMetadata: @flattenable, @reflattenable, flattenable
 export @flattenable, @reflattenable, flattenable, flatten, reconstruct, update!, modify,
        metaflatten, fieldnameflatten, parentnameflatten, fieldtypeflatten, parenttypeflatten
 
+struct EmptyIgnore end
 
 # Default behaviour when no flattentrait/use/ignore args are given
 const USE = Number
-const IGNORE = AbstractArray
+const IGNORE = EmptyIgnore 
 const FLATTENTRAIT = flattenable
 
 
@@ -259,7 +260,7 @@ reconstruct(obj, data, ft::Function) = reconstruct(obj, data, ft, USE)
 reconstruct(obj, data, ft::Function, use) = reconstruct(obj, data, ft, use, IGNORE)
 # Need to extract the final return value from the nested tuple
 reconstruct(obj, data, ft::Function, use, ignore) =
-    reconstruct(obj, data, ft, use, ignore, 1)[1][1]
+    reconstruct(obj, data, ft, use, ignore, firstindex(data))[1][1]
 # Return value unmodified
 reconstruct(x::I, data, ft::Function, use::Type{U}, ignore::Type{I}, n) where {U,I} = (x,), n
 # Return value from data. Increment position counter -  the returned n + 1 becomes n
