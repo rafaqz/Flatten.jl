@@ -29,7 +29,7 @@ julia> obj = Foo(1, :two, Foo(Bar(3), 4.0, 5.0f0));
 
 julia> use = Union{Int, Float32}; # Immediately return Int and AbstractFloat fields
 
-julia> ignore = Bar;  # Dont return or iterate over AbstractArray fields
+julia> ignore = Bar;  # Dont return Bar or iterate over Bar fields
 
 julia> flatten(obj, use, ignore) # Flatten all Int and Float32 except fields of Bar
 (1, 5.0f0)
@@ -38,8 +38,7 @@ julia> flatten(Foo(:one, :two, Foo(Bar(:three), 4.0, :five)), Symbol, Bar) # Ret
 (:one, :two, :five)
 ```
 
-The default type used is `Number`, while `AbstractArray` is ignored. These rules apply
-to all Flatten.jl functions.
+The default type used is `Number`. These rules apply to all Flatten.jl functions.
 
 Flatten.jl also uses [FieldMetadata.jl](https://github.com/rafaqz/FieldMetadata.jl)
 to provide a `@flattenable` macro, allowing you to choose struct fields to include
