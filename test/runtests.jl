@@ -1,4 +1,4 @@
-using Flatten, BenchmarkTools, FieldMetadata, Test
+using Flatten, Unitful, BenchmarkTools, FieldMetadata, Test
 import Flatten: flattenable
 
 struct Foo{A,B,C}
@@ -47,7 +47,7 @@ nesttuple = Nest((foo, nest), 9, 10)
 @test flatten((Nest(Foo(1,2,3),4.0,5.0), Nest(Foo(6,7,8), 9, 10))) == (1,2,3,4.0,5.0,6,7,8,9,10)
 
 # Test reconstruction
-@test typeof(reconstruct(foo, flatten(foo))) == typeof(foo)
+@test typeof( reconstruct(foo, (1.0, 2.0, 3.0))) == typeof(foo)
 @test typeof(reconstruct(nest, flatten(nest))) == typeof(nest)
 
 @test flatten(reconstruct(foo, flatten(foo))) == flatten(foo)
@@ -178,6 +178,20 @@ munestvoid = MuNest(MuFoo(1,2,3), nothing, nothing)
 @test flatten(reconstruct(nestvoid, flatten(nestvoid))) == flatten(nestvoid) 
 @test flatten(update!(munestvoid, flatten(munestvoid))) == flatten(munestvoid) 
 
+
+# Test unit stripping functions
+
+ufoo = Foo(1.0u"m", 2.0u"g", 3.0)
+unest = Nest(Foo(1u"m",2u"g",3), 4.0, 5.0u"kPa")
+unesttuple = Nest((ufoo, unest), 9, 10u"mol*L^-1")
+
+@test flatten(ufoo, Real) === (1.0,2.0,3.0)
+@test flatten(unest, Real) === (1,2,3,4.0,5.0)
+
+@test flatten(reconstruct(ufoo, flatten(ufoo, Real) , Real), Real) == flatten(ufoo, Real)
+
+@test flatten(reconstruct(ufoo, flatten(ufoo))) === flatten(ufoo)
+@test flatten(reconstruct(ufoo, (1u"g",2u"m",3.0))) === (1u"g",2u"m",3.0)
 
 
 ##############################################################################

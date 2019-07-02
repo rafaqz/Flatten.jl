@@ -79,11 +79,16 @@ owes much to discussions and ideas from Jan Weidner (@jw3126) and Robin Deits.
 """
 module Flatten
 
-using FieldMetadata
+using FieldMetadata, Requires
 import FieldMetadata: @flattenable, @reflattenable, flattenable
 
 export @flattenable, @reflattenable, flattenable, flatten, reconstruct, update!, modify,
        metaflatten, fieldnameflatten, parentnameflatten, fieldtypeflatten, parenttypeflatten
+
+# Optionally load Unitful and unlittless falttening 
+function __init__()
+    @require Unitful="1986cc42-f94f-5a68-af5c-568840ba703d" include("unitful.jl")
+end
 
 struct EmptyIgnore end
 
@@ -105,7 +110,7 @@ nested(T::Type, P::Type, expr_builder, expr_combiner, action) =
 Add methods to define constructors for types with custom type parameters.
 """
 @generated constructor_of(::Type{T}) where T = getfield(T.name.module, Symbol(T.name.name))
-constructor_of(::Type{T}) where T<:Tuple = :tuple
+constructor_of(::Type{T}) where T<:Tuple = tuple
 constructor_of(T::UnionAll) = constructor_of(T.body)
 
 
@@ -199,9 +204,10 @@ flatten(obj, args...) = flatten(obj, flattenable, args...)
 flatten(obj, ft::Function) = flatten(obj, ft, USE)
 flatten(obj, ft::Function, use) = flatten(obj, ft, use, IGNORE)
 flatten(x::I, ft::Function, use::Type{U}, ignore::Type{I}) where {U,I} = ()
-flatten(x::U, ft::Function, use::Type{U}, ignore::Type{I}) where {U,I} = (x,)
+flatten(x::U, ft::Function, use::Type{U}, ignore::Type{I}) where {U,I} = (_flatten(x),)
 @generated flatten(obj, flattentrait::Function, use, ignore) = flatten_inner(obj, flatten)
 
+_flatten(x) = x
 
 """
     reconstruct(obj, data, [flattentrait::Function], [use::Type], [ignore::Type])
@@ -245,12 +251,10 @@ reconstruct_builder(T, fname, action) = quote
     end
 end
 
-reconstruct_combiner(T, expressions) =
-    :(($(Expr(:call, constructor_of(T), expressions...)),), n)
+reconstruct_combiner(T, expressions) = :($(Expr(:tuple, expressions...)), n)
 
 reconstruct_inner(::Type{T}, action) where T =
     nested(T, reconstruct_builder, reconstruct_combiner, action)
-
 
 # Run from first data index and extract the final return value from the nested tuple
 reconstruct(obj, data) = reconstruct(obj, data, flattenable)
@@ -261,12 +265,17 @@ reconstruct(obj, data, ft::Function, use) = reconstruct(obj, data, ft, use, IGNO
 reconstruct(obj, data, ft::Function, use, ignore) =
     reconstruct(obj, data, ft, use, ignore, firstindex(data))[1][1]
 # Return value unmodified
-reconstruct(x::I, data, ft::Function, use::Type{U}, ignore::Type{I}, n) where {U,I} = (x,), n
+reconstruct(x::I, data, ft::Function, use::Type{U}, ignore::Type{I}, n) where {U,I} = (x, ), n
 # Return value from data. Increment position counter -  the returned n + 1 becomes n
-reconstruct(x::U, data, ft::Function, use::Type{U}, ignore::Type{I}, n) where {U,I} = (data[n],), n + 1
-@generated reconstruct(obj, data, flattentrait::Function, use, ignore, n) =
-    reconstruct_inner(obj, reconstruct)
+reconstruct(x::U, data, ft::Function, use::Type{U}, ignore::Type{I}, n) where {U,I} = 
+    (_reconstruct(x, data[n]),), n + 1
+@generated reconstruct(obj, data, flattentrait::Function, use, ignore, n) = 
+    quote
+        args, n = $(reconstruct_inner(obj, reconstruct))
+        (constructor_of(typeof(obj))(args...),), n
+    end
 
+_reconstruct(x, data) = data
 
 apply(func, data::Tuple{T, Vararg}) where T = (func(data[1]), apply(func, Base.tail(data))...)
 apply(func, data::Tuple{}) = ()
@@ -349,7 +358,11 @@ update!(obj, data, ft::Function, use, ignore) = begin
 end
 update!(x::I, data, ft::Function, use::Type{U}, ignore::Type{I}, n) where {U,I} = (x,), n
 update!(x::U, data, ft::Function, use::Type{U}, ignore::Type{I}, n) where {U,I} = (data[n],), n + 1
-@generated update!(obj, data, flattentrait::Function, use, ignore, n) = update_inner(obj, update!)
+@generated update!(obj, data, flattentrait::Function, use, ignore, n) = 
+    quote
+        x, n = $(update_inner(obj, update!))
+        (obj,), n
+    end
 
 
 """
