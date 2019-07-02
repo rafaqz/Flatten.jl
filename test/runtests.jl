@@ -190,8 +190,8 @@ unesttuple = Nest((ufoo, unest), 9, 10u"mol*L^-1")
 
 @test flatten(reconstruct(ufoo, flatten(ufoo, Real) , Real), Real) == flatten(ufoo, Real)
 
-@test flatten(reconstruct(ufoo, flatten(ufoo))) === flatten(ufoo)
-@test flatten(reconstruct(ufoo, (1u"g",2u"m",3.0))) === (1u"g",2u"m",3.0)
+@test flatten(reconstruct(ufoo, flatten(ufoo), Number), Number) === flatten(ufoo)
+@test flatten(reconstruct(ufoo, (1u"m",2u"g",3.0), Number), Number) === (1u"m",2u"g",3.0)
 
 
 ##############################################################################
