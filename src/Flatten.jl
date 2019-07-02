@@ -38,7 +38,7 @@ julia> flatten(Foo(:one, :two, Foo(Bar(:three), 4.0, :five)), Symbol, Bar) # Ret
 (:one, :two, :five)
 ```
 
-The default type used is `Number`. These rules apply to all Flatten.jl functions.
+The default type used is `Real`. These rules apply to all Flatten.jl functions.
 
 Flatten.jl also uses [FieldMetadata.jl](https://github.com/rafaqz/FieldMetadata.jl)
 to provide a `@flattenable` macro, allowing you to choose struct fields to include
@@ -93,7 +93,7 @@ end
 struct EmptyIgnore end
 
 # Default behaviour when no flattentrait/use/ignore args are given
-const USE = Number
+const USE = Real
 const IGNORE = EmptyIgnore 
 const FLATTENTRAIT = flattenable
 
@@ -433,7 +433,8 @@ metaflatten(obj, func::Function, ft::Function, use, ignore) =
 metaflatten(x::I, func::Function, ft::Function, use::Type{U}, ignore::Type{I}, P, fname) where {U,I} = ()
 metaflatten(x::U, func::Function, ft::Function, use::Type{U}, ignore::Type{I}, P, fname) where {U,I} =
     (func(P, fname),)
-# Better field names for tuples.  TODO what about mixed type tuples?
+# Better field names for tuples. TODO what about mixed type tuples? 
+# Also this could be confusing, consider removing.
 metaflatten(xs::NTuple{N,Number}, func::Function, ft::Function, use, ignore, P, fname) where {N} =
     map(x -> func(P, fname), xs)
 @generated metaflatten(obj, func::Function, flattentrait::Function, use, ignore, P, fname) =
