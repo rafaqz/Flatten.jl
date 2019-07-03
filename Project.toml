@@ -1,10 +1,10 @@
 name = "Flatten"
 uuid = "4c728ea3-d9ee-5c9a-9642-b6f7d7dc04fa"
 authors = ["Rafael Schouten <rafaelschouten@gmail.com>"]
-version = "0.2.0"
+version = "0.2.1"
 
 [compat]
-julia = "0.7, 1.0"
+julia = "0.7, 1"
 
 [deps]
 FieldMetadata = "bf96fef3-21d2-5d20-8afa-0e7d4c32a885"
