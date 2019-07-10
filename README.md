@@ -9,7 +9,7 @@
 
 Flatten.jl converts data between nested and flat structures, using `flatten()`,
 `reconstruct()` and `update!()` functions. This facilitates building modular,
-compostable code while still providing access to differentiation, solvers and
+composable code while still providing access to differentiation, solvers and
 optimisers that require flat vectors of parameters. Importantly it's also type-stable 
 and _very_ fast.
 
