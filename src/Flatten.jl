@@ -79,7 +79,7 @@ owes much to discussions and ideas from Jan Weidner (@jw3126) and Robin Deits.
 """
 module Flatten
 
-using FieldMetadata, Requires
+using ConstructionBase, FieldMetadata, Requires
 import FieldMetadata: @flattenable, @reflattenable, flattenable
 
 export @flattenable, @reflattenable, flattenable, flatten, reconstruct, update!, modify,
@@ -103,15 +103,6 @@ nested(T::Type, expr_builder, expr_combiner, action) =
     nested(T, Nothing, expr_builder, expr_combiner, action)
 nested(T::Type, P::Type, expr_builder, expr_combiner, action) =
     expr_combiner(T, [Expr(:..., expr_builder(T, fn, action)) for fn in fieldnames(T)])
-
-
-"""
-    constructor_of(::Type)
-Add methods to define constructors for types with custom type parameters.
-"""
-@generated constructor_of(::Type{T}) where T = getfield(T.name.module, Symbol(T.name.name))
-constructor_of(::Type{T}) where T<:Tuple = tuple
-constructor_of(T::UnionAll) = constructor_of(T.body)
 
 
 """
@@ -272,7 +263,7 @@ reconstruct(x::U, data, ft::Function, use::Type{U}, ignore::Type{I}, n) where {U
 @generated reconstruct(obj, data, flattentrait::Function, use, ignore, n) = 
     quote
         args, n = $(reconstruct_inner(obj, reconstruct))
-        (constructor_of(typeof(obj))(args...),), n
+        (constructorof(typeof(obj))(args...),), n
     end
 
 _reconstruct(x, data) = data
