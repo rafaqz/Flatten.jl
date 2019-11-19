@@ -79,16 +79,11 @@ owes much to discussions and ideas from Jan Weidner (@jw3126) and Robin Deits.
 """
 module Flatten
 
-using ConstructionBase, FieldMetadata, Requires
+using ConstructionBase, FieldMetadata
 import FieldMetadata: @flattenable, @reflattenable, flattenable
 
 export @flattenable, @reflattenable, flattenable, flatten, reconstruct, update!, modify,
        metaflatten, fieldnameflatten, parentnameflatten, fieldtypeflatten, parenttypeflatten
-
-# Optionally load Unitful and unlittless falttening 
-function __init__()
-    @require Unitful="1986cc42-f94f-5a68-af5c-568840ba703d" include("unitful.jl")
-end
 
 struct EmptyIgnore end
 
