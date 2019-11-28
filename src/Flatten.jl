@@ -1,85 +1,17 @@
-"""
-Flatten.jl converts data between nested and flat structures, using `flatten()`,
-`reconstruct()` and `update!()` functions. This facilitates building modular,
-composable structs while allowing access to solvers and optimisers that require flat
-vectors of parameters -- or any other use case that requires extraction or modification
-of a list of values from a nested type. Importantly it's type-stable and _very_ fast.
-
-
-Flatten is also flexible. The types to use and ignore can be specified, and fields can be
-ignored using field level traits like `flattenable` from FieldMetadata.jl. Method overrides
-can also be defined for custom types.
-
-Flatten allows 'querying' to extract some types and ignore others, here using `flatten`:
-
-```jldoctest
-julia> using Flatten
-
-julia> struct Foo{A,B,C}
-           a::A
-           b::B
-           c::C
-       end
-
-julia> struct Bar{X}
-           x::X
-       end
-
-julia> obj = Foo(1, :two, Foo(Bar(3), 4.0, 5.0f0));
-
-julia> use = Union{Int, Float32}; # Immediately return Int and AbstractFloat fields
-
-julia> ignore = Bar;  # Dont return Bar or iterate over Bar fields
-
-julia> flatten(obj, use, ignore) # Flatten all Int and Float32 except fields of Bar
-(1, 5.0f0)
-
-julia> flatten(Foo(:one, :two, Foo(Bar(:three), 4.0, :five)), Symbol, Bar) # Return all symbols, except in Bar
-(:one, :two, :five)
-```
-
-The default type used is `Real`. These rules apply to all Flatten.jl functions.
-
-Flatten.jl also uses [FieldMetadata.jl](https://github.com/rafaqz/FieldMetadata.jl)
-to provide a `@flattenable` macro, allowing you to choose struct fields to include
-and remove from flattening -- defaulting to `true` for all fields.
-
-```jldoctest
-using Flatten
-import Flatten: flattenable
-
-@flattenable struct Bar{X,Y}
-    x::X | true
-    y::Y | false
-end
-
-flatten(Bar(1, 2))
-
-# output
-(1,)
-```
-Custom `@metadata` methods from FieldMetadata can be used, if they return a Bool.
-You can also use cusom functions that follow the following form, returning a boolean:
-
-```julia
-f(::Type, ::Type{Var{:fieldname}}) = false
-```
-
-Flatten also provides `metaflatten()` to flatten any FieldMetadata.jl
-metadata for the same fields `flatten()` returns. This can be useful for attaching
-information like descriptions or prior propability distributions to each field.
-Regular field data can also be collected with convenience versions of metaflatten:
-`fieldnameflatten`, `parentflatten`, `fieldtypeflatten` and `parenttypeflatten`
-functions provide lists of fieldnames and types that may be useful for building
-parameter display tables.
-
-
-This package was started by Robin Deits (@rdeits), and its early development
-owes much to discussions and ideas from Jan Weidner (@jw3126) and Robin Deits.
-"""
 module Flatten
 
+# Use the README as the module docs
+@doc let 
+    path = joinpath(dirname(@__DIR__), "README.md")
+    include_dependency(path)
+    # Use [`XX`](@ref) in the docs but not the readme
+    replace(read(path, String), r"`(\w+\w)`" => s"[`\1`](@ref)")
+    # Use doctests
+    replace(read(path, String), "```julia" => "```jldoctest")
+end Flatten
+
 using ConstructionBase, FieldMetadata
+
 import FieldMetadata: @flattenable, @reflattenable, flattenable
 
 export @flattenable, @reflattenable, flattenable, flatten, reconstruct, update!, modify,
@@ -110,11 +42,8 @@ Query types and flatten trait arguments are optional, but you must pass `use` to
 # Arguments
 
 - `obj`: The target type to be reconstructed
-- `data`: Replacement data - an `AbstractArray`, `Tuple` or type that defines `getfield`.
 - `flattentrait`: A function returning a Bool, such as a FielMetadata method. With the form:
-```julia
-f(::Type, ::Type{Val{:fieldname}}) = true
-```
+  `f(::Type, ::Type{Val{:fieldname}}) = true`
 - `use`: Type or `Union` of types to return in the tuple.
 - `ignore`: Types or `Union` of types  to ignore completly. These are not reurned or recursed over.
 
@@ -140,6 +69,9 @@ Foo{Foo{Int64,Int64,Int64},Float64,Float64}(Foo{Int64,Int64,Int64}(1, 2, 3), 4.0
 
 julia> flatten(nested)
 (1, 2, 3, 4.0, 5.0)
+
+To convert the tuple to a vector, simply use [flatten(x)...], or
+using static arrays to avoid allocations: `SVector(flatten(x))`.
 ```
 
 
@@ -206,9 +138,7 @@ Query types and flatten trait arguments are optional, but you must pass `use` to
 - `obj`: The target type to be reconstructed
 - `data`: Replacement data - an `AbstractArray`, `Tuple` or type that defines `getfield`.
 - `flattentrait`: A function returning a Bool, such as a FielMetadata method. With the form:
-```julia
-f(::Type, ::Type{Val{:fieldname}}) = true
-```
+  `f(::Type, ::Type{Val{:fieldname}}) = true`
 - `use`: Type or `Union` of types to return in the tuple.
 - `ignore`: Types or `Union` of types  to ignore completly. These are not reurned or recursed over.
 
@@ -270,12 +200,12 @@ apply(func, data::Tuple{}) = ()
     modify(func, obj, args...)
 
 Modify field in a type with a function
-
 """
 modify(func, obj, args...) = reconstruct(obj, apply(func, (flatten(obj, args...))), args...)
 
 """
     update!(obj, data, [flattentrait::Function], [use::Type], [ignore::Type])
+
 Update a mutable object with a `Tuple` or `Vector` of data.
 Query types and flatten trait arguments are optional, but you must pass `use` to pass `ignore`.
 
@@ -284,9 +214,7 @@ Query types and flatten trait arguments are optional, but you must pass `use` to
 - `obj`: The target type to be reconstructed
 - `data`: Replacement data - an `AbstractArray`, `Tuple` or type that defines `getfield`.
 - `flattentrait`: A function returning a Bool, such as a FielMetadat method. With the form:
-```julia
-f(::Type, ::Type{Val{:fieldname}}) = true
-```
+  `f(::Type, ::Type{Val{:fieldname}}) = true`
 - `use`: Types to return in the tuple.
 - `ignore`: Types to ignore completly. These are not reurned or recursed over.
 
@@ -310,8 +238,8 @@ MutableFoo{Int64,Int64,Int64}(2, 4, 6)
 julia> mufoo = MutableFoo(1, 2, :three)
 MutableFoo{Int64,Int64,Symbol}(1, 2, :three)
 
-julia> update!(mufoo, (:four,), Symbol)
-MutableFoo{Int64,Int64,Symbol}(1, 2, :four)
+julia> update!(mufoo, (:foo,), Symbol)
+MutableFoo{Int64,Int64,Symbol}(1, 2, :foo)
 ```
 """
 function update! end
@@ -360,18 +288,13 @@ Query types and flatten trait arguments are optional, but you must pass `use` to
 # Arguments
 
 - `obj`: The target type to be reconstructed
-- `func`: A function with the form: 
-```julia
-f(::Type, ::Type{Val{:fieldname}}) = metadata
-```
+- `func`: A function with the form: `f(::Type, ::Type{Val{:fieldname}}) = metadata`
 - `flattentrait`: A function returning a Bool, such as a FielMetadata method. With the form:
-```julia
-f(::Type, ::Type{Val{:fieldname}}) = true
-```
+  `f(::Type, ::Type{Val{:fieldname}}) = true`
 - `use`: Type or `Union` of types to return in the tuple.
 - `ignore`: Types or `Union` of types  to ignore completly. These are not reurned or recursed over.
 
-We can flatten the @foobar metadata defined earlier:
+We can flatten this `@foobar` metadata:
 
 ```jldoctest
 julia> using Flatten, FieldMetadata
@@ -435,7 +358,7 @@ fieldname_meta(T, ::Type{Val{N}}) where N = N
 """jldoctest
     fieldnameflatten(obj, args...)
 
-Flatten the field names of an object. Args are passed to metaflatten.
+Flatten the field names of an object. Args are passed to [`metaflatten`](@ref).
 
 # Examples
 
@@ -460,7 +383,7 @@ fieldtype_meta(T, ::Type{Val{N}}) where N = fieldtype(T, N)
 """
     fieldtypeflatten(obj, args...)
 
-Flatten the field types of an object. Args are passed to metaflatten.
+Flatten the field types of an object. Args are passed to [`metaflatten`](@ref).
 
 # Examples
 
@@ -486,7 +409,7 @@ fieldparent_meta(T, ::Type{Val{N}}) where N = T.name.name
 """
     parentnameflatten(obj, args...)
 
-Flatten the name of the parent type of an object. Args are passed to metaflatten.
+Flatten the name of the parent type of an object. Args are passed to [`metaflatten`](@ref).
 
 # Examples
 
@@ -516,7 +439,7 @@ fieldparenttype_meta(T, ::Type{Val{N}}) where N = T
 """
     parenttypeflatten(obj, args...)
 
-Flatten the parent type of an object. Args are passed to metaflatten.
+Flatten the parent type of an object. Args are passed to [`metaflatten`](@ref).
 
 # Examples
 
