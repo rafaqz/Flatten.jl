@@ -19,11 +19,7 @@ notifications:
   email: false
 
 after_success:
-  - if [[ $TRAVIS_JULIA_VERSION = 1.1 ]] && [[ $TRAVIS_OS_NAME = linux ]]; then
-      julia --project=coverage/ -e 'using Pkg; Pkg.instantiate();
-          using Coverage; Codecov.submit(Codecov.process_folder()); 
-                          Coveralls.submit(Coveralls.process_folder())';
-    fi
+  - julia -e 'using Pkg; Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder()); Codecov.submit(Codecov.process_folder())';
 
 jobs:
   include:
