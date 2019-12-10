@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Flatten.jl · Flatten.jl</title><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="assets/documenter.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-dark.css" data-theme-name="documenter-dark"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit">Flatten.jl</span></div><form class="docs-search" action="search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li class="is-active"><a class="tocitem" href>Flatten.jl</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Flatten.jl</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Flatten.jl</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/rafaqz/Flatten.jl/blob/master/docs/src/index.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Flatten.jl-1"><a class="docs-heading-anchor" href="#Flatten.jl-1">Flatten.jl</a><a class="docs-heading-anchor-permalink" href="#Flatten.jl-1" title="Permalink"></a></h1><article class="docstring"><header><a class="docstring-binding" id="Flatten.Flatten" href="#Flatten.Flatten"><code>Flatten.Flatten</code></a> — <span class="docstring-category">Module</span></header><section><div><p><strong>Flatten</strong></p><p><a href="https://rafaqz.github.io/Flatten.jl/stable"><img src="https://img.shields.io/badge/docs-stable-blue.svg" alt/></a> <a href="https://rafaqz.github.io/Flatten.jl/dev"><img src="https://img.shields.io/badge/docs-dev-blue.svg" alt/></a> <a href="https://travis-ci.org/rafaqz/Flatten.jl"><img src="https://travis-ci.org/rafaqz/Flatten.jl.svg?branch=master" alt="Build Status"/></a> <a href="http://codecov.io/github/rafaqz/Flatten.jl?branch=master"><img src="http://codecov.io/github/rafaqz/Flatten.jl/coverage.svg?branch=master" alt="codecov.io"/></a> <a href="https://coveralls.io/github/rafaqz/Flatten.jl?branch=master"><img src="https://coveralls.io/repos/rafaqz/Flatten.jl/badge.svg?branch=master&amp;service=github" alt="Coverage Status"/></a></p><p>Flatten.jl converts data from arbitrary nested structs to tuples, using <code>flatten()</code>, <code>reconstruct()</code>, <code>update!()</code> and <code>modify()</code> functions. This facilitates building modular, composable structs while allowing access to solvers and optimisers that require flat lists of parameters. Importantly it&#39;s type-stable and <em>very</em> fast. It is not intended for use with arrays, as we do not know their length at compile time.</p><p>Flatten is also flexible. The types to return and ignore can be specified, and individual fields can be ignored using field-level traits like <code>flattenable</code> from FieldMetadata.jl. Method overrides can also be defined for custom types.</p><p><strong>Type queries</strong></p><p>Flatten allows a kind of querying to extract some types and ignore others, here using <code>flatten</code>:</p><pre><code class="language-julia-repl">julia&gt; using Flatten
+
+julia&gt; struct Foo{A,B,C}
+           a::A
+           b::B
+           c::C
+       end
+
+julia&gt; struct Bar{X}
+           x::X
+       end
+
+julia&gt; obj = Foo(1, :two, Foo(Bar(3), 4.0, 5.0f0));
+
+julia&gt; use = Union{Int, Float32}; # Return Int and Float32 fields
+
+julia&gt; ignore = Bar;  # Dont return Bar or iterate over Bar fields
+
+julia&gt; flatten(obj, use, ignore) # Flatten all Int and Float32 except fields of Bar
+(1, 5.0f0)</code></pre><p>The default type used is <code>Real</code>. These rules also apply in <code>reconstruct</code>, <code>update!</code> and <code>modify</code>.</p><p><strong>Field removal</strong></p><p>There are often cases where you want to ignore certain fields that have the same type as the fields you want to extract. Flatten.jl also <a href="https://github.com/rafaqz/FieldMetadata.jl">FieldMetadata.jl</a> to provide <code>@flattenable</code> macro and methods, allowing you to choose fields to include and remove from flattening. The default is <code>true</code> for all fields.</p><pre><code class="language-julia">using Flatten
+import Flatten: flattenable
+
+@flattenable struct Bar{X,Y}
+    x::X | true
+    y::Y | false
+end
+
+flatten(Bar(1, 2))
+
+# output
+(1,)</code></pre><p>Custom <code>@metadata</code> methods from FieldMetadata can be used, if they return a Bool. You can also use custom functions that follow the following form, returning a boolean:</p><pre><code class="language-julia">f(::Type, ::Type{Var{:fieldname}}) = false</code></pre><p><strong>Metatdata flattening</strong></p><p>Flatten also provides <code>metaflatten()</code> to flatten any FieldMetadata.jl metadata for the same fields <code>flatten()</code> returns. This can be useful for attaching information like descriptions or prior probability distributions to each field. Regular field data can also be collected with convenience versions of metaflatten: <code>fieldnameflatten</code>, <code>parentflatten</code>, <code>fieldtypeflatten</code> and <code>parenttypeflatten</code> functions provide lists of fieldnames and types that may be useful for building parameter display tables.</p><p>This package was started by Robin Deits (@rdeits), and its early development owes much to discussions and ideas from Jan Weidner (@jw3126) and Robin Deits. &quot;&quot;&quot;</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/rafaqz/Flatten.jl/blob/8447c94a6768d14e225355b36b3a3096d6acdf3a/src/Flatten.jl#L4-L98">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="Flatten.fieldnameflatten-Tuple{Any,Vararg{Any,N} where N}" href="#Flatten.fieldnameflatten-Tuple{Any,Vararg{Any,N} where N}"><code>Flatten.fieldnameflatten</code></a> — <span class="docstring-category">Method</span></header><section><div><p>jldoctest     fieldnameflatten(obj, args...)</p><p>Flatten the field names of an object. Args are passed to <a href="#Flatten.metaflatten"><code>metaflatten</code></a>.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl">julia&gt; using Flatten
+
+julia&gt; struct Foo{A,B,C}
+           a::A
+           b::B
+           c::C
+       end
+
+julia&gt; fieldnameflatten(Foo(1, 2, 3))
+(:a, :b, :c)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/rafaqz/Flatten.jl/blob/8447c94a6768d14e225355b36b3a3096d6acdf3a/src/Flatten.jl#L358-L378">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="Flatten.fieldtypeflatten-Tuple{Any,Vararg{Any,N} where N}" href="#Flatten.fieldtypeflatten-Tuple{Any,Vararg{Any,N} where N}"><code>Flatten.fieldtypeflatten</code></a> — <span class="docstring-category">Method</span></header><section><div><pre><code class="language-julia">fieldtypeflatten(obj, args...)</code></pre><p>Flatten the field types of an object. Args are passed to <a href="#Flatten.metaflatten"><code>metaflatten</code></a>.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl">julia&gt; using Flatten
+
+julia&gt; struct Foo{A,B,C}
+           a::A
+           b::B
+           c::C
+       end
+
+julia&gt; fieldtypeflatten(Foo(1.0, :two, &quot;Three&quot;), Union{Real,String})
+(Float64, String)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/rafaqz/Flatten.jl/blob/8447c94a6768d14e225355b36b3a3096d6acdf3a/src/Flatten.jl#L383-L402">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="Flatten.flatten" href="#Flatten.flatten"><code>Flatten.flatten</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia">flatten(obj, [flattentrait::Function], [use::Type], [ignore::Type])</code></pre><p>Flattening. Flattens a nested struct or tuple to a flat tuple. Query types and flatten trait arguments are optional, but you must pass <code>use</code> to pass <code>ignore</code>.</p><p><strong>Arguments</strong></p><ul><li><code>obj</code>: The target type to be reconstructed</li><li><code>flattentrait</code>: A function returning a Bool, such as a FielMetadata method. With the form: <code>f(::Type, ::Type{Val{:fieldname}}) = true</code></li><li><code>use</code>: Type or <code>Union</code> of types to return in the tuple.</li><li><code>ignore</code>: Types or <code>Union</code> of types  to ignore completly. These are not reurned or recursed over.</li></ul><p><strong>Examples</strong></p><pre><code class="language-julia-repl">julia&gt; using Flatten
+
+julia&gt; struct Foo{A,B,C}
+           a::A
+           b::B
+           c::C
+       end
+
+julia&gt; foo = Foo(1, 2, 3)
+Foo{Int64,Int64,Int64}(1, 2, 3)
+
+julia&gt; flatten(foo)
+(1, 2, 3)
+
+julia&gt; nested = Foo(Foo(1, 2, 3), 4.0, 5.0)
+Foo{Foo{Int64,Int64,Int64},Float64,Float64}(Foo{Int64,Int64,Int64}(1, 2, 3), 4.0, 5.0)
+
+julia&gt; flatten(nested)
+(1, 2, 3, 4.0, 5.0)
+
+To convert the tuple to a vector, simply use [flatten(x)...], or
+using static arrays to avoid allocations: `SVector(flatten(x))`.</code></pre><p>Fields can be excluded from flattening with the <code>flattenable(struct, field)</code> method. These are easily defined using <code>@flattenable</code> from <a href="https://github.com/rafaqz/FieldMetadata.jl">FieldMetadata.jl</a>, or defining your own custom function with FieldMetadata, or manually with the form:</p><pre><code class="language-julia">julia&gt; import Flatten: flattenable
+
+julia&gt; @flattenable struct Partial{A,B,C}
+           a::A | true
+           b::B | true
+           c::C | false
+       end
+
+julia&gt; nestedpartial = Partial(Partial(1.0, 2.0, 3.0), 4, 5)
+Partial{Partial{Float64,Float64,Float64},Int64,Int64}(Partial{Float64,Float64,Float64}(1.0, 2.0, 3.0), 4, 5)
+
+julia&gt; nestedpartial = Partial(Partial(1.0, 2.0, 3.0), 4, 5)
+Partial{Partial{Float64,Float64,Float64},Int64,Int64}(Partial{Float64,Float64,Float64}(1.0, 2.0, 3.0), 4, 5)
+
+julia&gt; flatten(nestedpartial)
+(1.0, 2.0, 4)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/rafaqz/Flatten.jl/blob/8447c94a6768d14e225355b36b3a3096d6acdf3a/src/Flatten.jl#L35-L103">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="Flatten.metaflatten" href="#Flatten.metaflatten"><code>Flatten.metaflatten</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia">metaflatten(obj, func, [flattentrait::Function], [use::Type], [ignore::Type])</code></pre><p>Metadata flattening. Flattens data attached to a field using a passed in function Query types and flatten trait arguments are optional, but you must pass <code>use</code> to pass <code>ignore</code>.</p><p><strong>Arguments</strong></p><ul><li><code>obj</code>: The target type to be reconstructed</li><li><code>func</code>: A function with the form: <code>f(::Type, ::Type{Val{:fieldname}}) = metadata</code></li><li><code>flattentrait</code>: A function returning a Bool, such as a FielMetadata method. With the form: <code>f(::Type, ::Type{Val{:fieldname}}) = true</code></li><li><code>use</code>: Type or <code>Union</code> of types to return in the tuple.</li><li><code>ignore</code>: Types or <code>Union</code> of types  to ignore completly. These are not reurned or recursed over.</li></ul><p>We can flatten this <code>@foobar</code> metadata:</p><pre><code class="language-julia-repl">julia&gt; using Flatten, FieldMetadata
+
+julia&gt; import Flatten: flattenable
+
+julia&gt; @metadata foobar :foo;
+
+julia&gt; @foobar struct Foo{A,B,C}
+           a::A | :bar
+           b::B | :foobar
+           c::C | :foo
+       end;
+
+julia&gt; @foobar struct Bar{X,Y}
+           x::X | :foobar
+           y::Y | :bar
+       end;
+
+julia&gt; metaflatten(Foo(1, 2, Bar(3, 4)), foobar)
+(:bar, :foobar, :foobar, :bar)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/rafaqz/Flatten.jl/blob/8447c94a6768d14e225355b36b3a3096d6acdf3a/src/Flatten.jl#L282-L320">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="Flatten.modify-Tuple{Any,Any,Vararg{Any,N} where N}" href="#Flatten.modify-Tuple{Any,Any,Vararg{Any,N} where N}"><code>Flatten.modify</code></a> — <span class="docstring-category">Method</span></header><section><div><pre><code class="language-julia">modify(func, obj, args...)</code></pre><p>Modify field in a type with a function</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/rafaqz/Flatten.jl/blob/8447c94a6768d14e225355b36b3a3096d6acdf3a/src/Flatten.jl#L199-L203">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="Flatten.parentnameflatten-Tuple{Any,Vararg{Any,N} where N}" href="#Flatten.parentnameflatten-Tuple{Any,Vararg{Any,N} where N}"><code>Flatten.parentnameflatten</code></a> — <span class="docstring-category">Method</span></header><section><div><pre><code class="language-julia">parentnameflatten(obj, args...)</code></pre><p>Flatten the name of the parent type of an object. Args are passed to <a href="#Flatten.metaflatten"><code>metaflatten</code></a>.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl">julia&gt; using Flatten
+
+julia&gt; struct Foo{A,B,C}
+           a::A
+           b::B
+           c::C
+       end
+
+julia&gt; struct Bar{X,Y}
+           x::X
+           y::Y
+       end
+
+julia&gt; parentnameflatten(Foo(1, 2, Bar(3, 4)))
+(:Foo, :Foo, :Bar, :Bar)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/rafaqz/Flatten.jl/blob/8447c94a6768d14e225355b36b3a3096d6acdf3a/src/Flatten.jl#L409-L433">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="Flatten.parenttypeflatten-Tuple{Any,Vararg{Any,N} where N}" href="#Flatten.parenttypeflatten-Tuple{Any,Vararg{Any,N} where N}"><code>Flatten.parenttypeflatten</code></a> — <span class="docstring-category">Method</span></header><section><div><pre><code class="language-julia">parenttypeflatten(obj, args...)</code></pre><p>Flatten the parent type of an object. Args are passed to <a href="#Flatten.metaflatten"><code>metaflatten</code></a>.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl">julia&gt; using Flatten
+
+julia&gt; struct Foo{A,B,C}
+           a::A
+           b::B
+           c::C
+       end
+
+julia&gt; struct Bar{X,Y}
+           x::X
+           y::Y
+       end
+
+julia&gt; parenttypeflatten(Foo(1, 2, Bar(3, 4)))
+(Foo{Int64,Int64,Bar{Int64,Int64}}, Foo{Int64,Int64,Bar{Int64,Int64}}, Bar{Int64,Int64}, Bar{Int64,Int64})</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/rafaqz/Flatten.jl/blob/8447c94a6768d14e225355b36b3a3096d6acdf3a/src/Flatten.jl#L439-L463">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="Flatten.reconstruct" href="#Flatten.reconstruct"><code>Flatten.reconstruct</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia">reconstruct(obj, data, [flattentrait::Function], [use::Type], [ignore::Type])</code></pre><p>Reconstruct an object from Tuple or Vector data and an existing object. Data should be at least as long as the queried fields in the obj. Query types and flatten trait arguments are optional, but you must pass <code>use</code> to pass <code>ignore</code>.</p><p><strong>Arguments</strong></p><ul><li><code>obj</code>: The target type to be reconstructed</li><li><code>data</code>: Replacement data - an <code>AbstractArray</code>, <code>Tuple</code> or type that defines <code>getfield</code>.</li><li><code>flattentrait</code>: A function returning a Bool, such as a FielMetadata method. With the form: <code>f(::Type, ::Type{Val{:fieldname}}) = true</code></li><li><code>use</code>: Type or <code>Union</code> of types to return in the tuple.</li><li><code>ignore</code>: Types or <code>Union</code> of types  to ignore completly. These are not reurned or recursed over.</li></ul><p><strong>Examples</strong></p><pre><code class="language-julia">julia&gt; struct Foo{A,B,C}
+           a::A
+           b::B
+           c::C
+       end
+
+julia&gt; reconstruct(Foo(1, 2, 3), (1, :two, 3.0))
+Foo{Int64,Symbol,Float64}(1, :two, 3.0)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/rafaqz/Flatten.jl/blob/8447c94a6768d14e225355b36b3a3096d6acdf3a/src/Flatten.jl#L130-L157">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="Flatten.update!" href="#Flatten.update!"><code>Flatten.update!</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia">update!(obj, data, [flattentrait::Function], [use::Type], [ignore::Type])</code></pre><p>Update a mutable object with a <code>Tuple</code> or <code>Vector</code> of data. Query types and flatten trait arguments are optional, but you must pass <code>use</code> to pass <code>ignore</code>.</p><p><strong>Arguments</strong></p><ul><li><code>obj</code>: The target type to be reconstructed</li><li><code>data</code>: Replacement data - an <code>AbstractArray</code>, <code>Tuple</code> or type that defines <code>getfield</code>.</li><li><code>flattentrait</code>: A function returning a Bool, such as a FielMetadat method. With the form: <code>f(::Type, ::Type{Val{:fieldname}}) = true</code></li><li><code>use</code>: Types to return in the tuple.</li><li><code>ignore</code>: Types to ignore completly. These are not reurned or recursed over.</li></ul><p><strong>Examples</strong></p><pre><code class="language-julia-repl">julia&gt; using Flatten
+
+julia&gt; mutable struct MutableFoo{A,B,C}
+           a::A
+           b::B
+           c::C
+       end
+
+julia&gt; mufoo = MutableFoo(1, 2, 3)
+MutableFoo{Int64,Int64,Int64}(1, 2, 3)
+
+julia&gt; update!(mufoo, (2, 4, 6))
+MutableFoo{Int64,Int64,Int64}(2, 4, 6)
+
+julia&gt; mufoo = MutableFoo(1, 2, :three)
+MutableFoo{Int64,Int64,Symbol}(1, 2, :three)
+
+julia&gt; update!(mufoo, (:foo,), Symbol)
+MutableFoo{Int64,Int64,Symbol}(1, 2, :foo)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/rafaqz/Flatten.jl/blob/8447c94a6768d14e225355b36b3a3096d6acdf3a/src/Flatten.jl#L206-L244">source</a></section></article></article></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Tuesday 10 December 2019 06:12">Tuesday 10 December 2019</span>. Using Julia version 1.0.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
