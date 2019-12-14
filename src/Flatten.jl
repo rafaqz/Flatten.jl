@@ -121,11 +121,17 @@ flatten(obj) = flatten(obj, flattenable)
 flatten(obj, args...) = flatten(obj, flattenable, args...)
 flatten(obj, ft::Function) = flatten(obj, ft, USE)
 flatten(obj, ft::Function, use) = flatten(obj, ft, use, IGNORE)
-flatten(x::I, ft::Function, use::Type{U}, ignore::Type{I}) where {U,I} = ()
-flatten(x::U, ft::Function, use::Type{U}, ignore::Type{I}) where {U,I} = (_flatten(x),)
-@generated flatten(obj, flattentrait::Function, use, ignore) = flatten_inner(obj, flatten)
+flatten(x::X, ft::Function, use::Type{U}, ignore::Type{I}) where {X,U,I} =
+    if X <: I 
+        ()
+    elseif X <: U
+        (x,)
+    else
+        _flatten(x, ft, use, ignore)
+    end
 
-_flatten(x) = x
+@generated _flatten(obj, flattentrait, use, ignore) = 
+    flatten_inner(obj, flatten)
 
 """
     reconstruct(obj, data, [flattentrait::Function], [use::Type], [ignore::Type])
