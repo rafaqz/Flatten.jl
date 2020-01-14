@@ -1,7 +1,7 @@
 module Flatten
 
 # Use the README as the module docs
-@doc let 
+@doc let
     path = joinpath(dirname(@__DIR__), "README.md")
     include_dependency(path)
     # Use [`XX`](@ref) in the docs but not the readme
@@ -21,15 +21,16 @@ struct EmptyIgnore end
 
 # Default behaviour when no flattentrait/use/ignore args are given
 const USE = Real
-const IGNORE = EmptyIgnore 
+const IGNORE = EmptyIgnore
 const FLATTENTRAIT = flattenable
 
 
 # Generalised nested struct walker
-nested(T::Type, expr_builder, expr_combiner, action) =
-    nested(T, Nothing, expr_builder, expr_combiner, action)
-nested(T::Type, P::Type, expr_builder, expr_combiner, action) =
-    expr_combiner(T, [Expr(:..., expr_builder(T, fn, action)) for fn in fieldnames(T)])
+nested(T::Type, P::Type, expr_builder, expr_combiner) =
+    expr_combiner(T, [Expr(:..., expr_builder(T, fn)) for fn in fieldnames(T)])
+# Unknown parent type is replaced with Nothing
+nested(T::Type, expr_builder, expr_combiner) =
+    nested(T, Nothing, expr_builder, expr_combiner)
 
 
 """
@@ -104,9 +105,9 @@ julia> flatten(nestedpartial)
 function flatten end
 
 
-flatten_builder(T, fname, action) = quote
+flatten_builder(T, fname) = quote
     if flattentrait($T, Val{$(QuoteNode(fname))})
-        $action(getfield(obj, $(QuoteNode(fname))), flattentrait, use, ignore)
+        flatten(getfield(obj, $(QuoteNode(fname))), flattentrait, use, ignore)
     else
         ()
     end
@@ -114,15 +115,14 @@ end
 
 flatten_combiner(T, expressions) = Expr(:tuple, expressions...)
 
-flatten_inner(T, action) =
-    nested(T, flatten_builder, flatten_combiner, action)
+flatten_inner(T) = nested(T, flatten_builder, flatten_combiner)
 
 flatten(obj) = flatten(obj, flattenable)
 flatten(obj, args...) = flatten(obj, flattenable, args...)
 flatten(obj, ft::Function) = flatten(obj, ft, USE)
 flatten(obj, ft::Function, use) = flatten(obj, ft, use, IGNORE)
 flatten(x::X, ft::Function, use::Type{U}, ignore::Type{I}) where {X,U,I} =
-    if X <: I 
+    if X <: I
         ()
     elseif X <: U
         (x,)
@@ -130,8 +130,7 @@ flatten(x::X, ft::Function, use::Type{U}, ignore::Type{I}) where {X,U,I} =
         _flatten(x, ft, use, ignore)
     end
 
-@generated _flatten(obj, flattentrait, use, ignore) = 
-    flatten_inner(obj, flatten)
+@generated _flatten(obj, flattentrait, use, ignore) = flatten_inner(obj)
 
 """
     reconstruct(obj, data, [flattentrait::Function], [use::Type], [ignore::Type])
@@ -163,10 +162,10 @@ Foo{Int64,Symbol,Float64}(1, :two, 3.0)
 """
 function reconstruct end
 
-reconstruct_builder(T, fname, action) = quote
+reconstruct_builder(T, fname) = quote
     if flattentrait($T, Val{$(QuoteNode(fname))})
         x = getfield(obj, $(QuoteNode(fname)))
-        val, n = $action(x, data, flattentrait, use, ignore, n)
+        val, n = reconstruct(x, data, flattentrait, use, ignore, n)
         val
     else
         (getfield(obj, $(QuoteNode(fname))),)
@@ -175,8 +174,8 @@ end
 
 reconstruct_combiner(T, expressions) = :($(Expr(:tuple, expressions...)), n)
 
-reconstruct_inner(::Type{T}, action) where T =
-    nested(T, reconstruct_builder, reconstruct_combiner, action)
+reconstruct_inner(::Type{T}) where T =
+    nested(T, reconstruct_builder, reconstruct_combiner)
 
 # Run from first data index and extract the final return value from the nested tuple
 reconstruct(obj, data) = reconstruct(obj, data, flattenable)
@@ -188,16 +187,18 @@ reconstruct(obj, data, ft::Function, use, ignore) =
     reconstruct(obj, data, ft, use, ignore, firstindex(data))[1][1]
 # Return value unmodified
 reconstruct(x::I, data, ft::Function, use::Type{U}, ignore::Type{I}, n) where {U,I} = (x, ), n
-# Return value from data. Increment position counter -  the returned n + 1 becomes n
-reconstruct(x::U, data, ft::Function, use::Type{U}, ignore::Type{I}, n) where {U,I} = 
-    (_reconstruct(x, data[n]),), n + 1
-@generated reconstruct(obj, data, flattentrait::Function, use, ignore, n) = 
+# Return value from data. Increment position counter - the returned n + 1 becomes n
+reconstruct(x::U, data, ft::Function, use::Type{U}, ignore::Type{I}, n) where {U,I} =
+    (data[n],), n + 1
+@generated reconstruct(obj, data, flattentrait::Function, use, ignore, n) =
     quote
-        args, n = $(reconstruct_inner(obj, reconstruct))
-        (constructorof(typeof(obj))(args...),), n
+        args, n = $(reconstruct_inner(obj))
+        if length(args) > 0
+            (constructorof(typeof(obj))(args...),), n
+        else
+            (obj,), n
+        end
     end
-
-_reconstruct(x, data) = data
 
 apply(func, data::Tuple{T, Vararg}) where T = (func(data[1]), apply(func, Base.tail(data))...)
 apply(func, data::Tuple{}) = ()
@@ -250,23 +251,31 @@ MutableFoo{Int64,Int64,Symbol}(1, 2, :foo)
 """
 function update! end
 
-update_builder(T, fname, action) = quote
+update_builder(T, fname) = quote
     if flattentrait($T, Val{$(QuoteNode(fname))})
         x = getfield(obj, $(QuoteNode(fname)))
-        val, n = $action(x, data, flattentrait, use, ignore, n)
+        val, n = update!(x, data, flattentrait, use, ignore, n)
         setfield!(obj, $(QuoteNode(fname)), val[1])
     end
     ()
 end
 
-# Use the reconstruct builder for tuples, they're immutable
-update_builder(T::Type{<:Tuple}, fname, action) = reconstruct_builder(T, fname, action)
+# Identical to the reconstruct builder for tuples, they're immutable
+update_builder(T::Type{<:Tuple}, fname) = quote
+    if flattentrait($T, Val{$(QuoteNode(fname))})
+        x = getfield(obj, $(QuoteNode(fname)))
+        val, n = update!(x, data, flattentrait, use, ignore, n)
+        val
+    else
+        (getfield(obj, $(QuoteNode(fname))),)
+    end
+end
 
 update_combiner(T, expressions) = :($(Expr(:tuple, expressions...)); ((obj,), n))
 update_combiner(T::Type{<:Tuple}, expressions) = reconstruct_combiner(T, expressions)
 
-update_inner(::Type{T}, action) where T =
-    nested(T, update_builder, update_combiner, action)
+update_inner(::Type{T}) where T =
+    nested(T, update_builder, update_combiner)
 
 update!(obj, data) = update!(obj, data, flattenable)
 update!(obj, data, args...) = update!(obj, data, flattenable, args...)
@@ -278,9 +287,9 @@ update!(obj, data, ft::Function, use, ignore) = begin
 end
 update!(x::I, data, ft::Function, use::Type{U}, ignore::Type{I}, n) where {U,I} = (x,), n
 update!(x::U, data, ft::Function, use::Type{U}, ignore::Type{I}, n) where {U,I} = (data[n],), n + 1
-@generated update!(obj, data, flattentrait::Function, use, ignore, n) = 
+@generated update!(obj, data, flattentrait::Function, use, ignore, n) =
     quote
-        x, n = $(update_inner(obj, update!))
+        x, n = $(update_inner(obj))
         (obj,), n
     end
 
@@ -326,17 +335,17 @@ julia> metaflatten(Foo(1, 2, Bar(3, 4)), foobar)
 """
 function metaflatten end
 
-metaflatten_builder(T, fname, action) = quote
+metaflatten_builder(T, fname) = quote
     if flattentrait($T, Val{$(QuoteNode(fname))})
         x = getfield(obj, $(QuoteNode(fname)))
-        $action(x, func, flattentrait, use, ignore, $T, Val{$(QuoteNode(fname))})
+        metaflatten(x, func, flattentrait, use, ignore, $T, Val{$(QuoteNode(fname))})
     else
         ()
     end
 end
 
-metaflatten_inner(T::Type, action) =
-    nested(T, metaflatten_builder, flatten_combiner, action)
+metaflatten_inner(T::Type) =
+    nested(T, metaflatten_builder, flatten_combiner)
 
 metaflatten(obj, func::Function) = metaflatten(obj, func, flattenable)
 metaflatten(obj, func::Function, args...) = metaflatten(obj, func, flattenable, args...)
@@ -348,12 +357,12 @@ metaflatten(obj, func::Function, ft::Function, use, ignore) =
 metaflatten(x::I, func::Function, ft::Function, use::Type{U}, ignore::Type{I}, P, fname) where {U,I} = ()
 metaflatten(x::U, func::Function, ft::Function, use::Type{U}, ignore::Type{I}, P, fname) where {U,I} =
     (func(P, fname),)
-# Better field names for tuples. TODO what about mixed type tuples? 
+# Better field names for tuples. TODO what about mixed type tuples?
 # Also this could be confusing, consider removing.
 metaflatten(xs::NTuple{N,Number}, func::Function, ft::Function, use, ignore, P, fname) where {N} =
     map(x -> func(P, fname), xs)
 @generated metaflatten(obj, func::Function, flattentrait::Function, use, ignore, P, fname) =
-    metaflatten_inner(obj, metaflatten)
+    metaflatten_inner(obj)
 
 
 # Helper functions to get field data with metaflatten
