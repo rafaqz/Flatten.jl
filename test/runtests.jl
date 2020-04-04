@@ -47,7 +47,7 @@ nesttuple = Nest((foo, nest), 9, 10)
 @test flatten((Nest(Foo(1,2,3),4.0,5.0), Nest(Foo(6,7,8), 9, 10))) == (1,2,3,4.0,5.0,6,7,8,9,10)
 
 # Test reconstruction
-@test typeof( reconstruct(foo, (1.0, 2.0, 3.0))) == typeof(foo)
+@test typeof(reconstruct(foo, (1.0, 2.0, 3.0))) == typeof(foo)
 @test typeof(reconstruct(nest, flatten(nest))) == typeof(nest)
 
 @test flatten(reconstruct(foo, flatten(foo))) == flatten(foo)
@@ -58,6 +58,11 @@ nesttuple = Nest((foo, nest), 9, 10)
 @test flatten(reconstruct(foo, flatten(foo, Real)), Real) == flatten(foo, Real)
 foo2 = Foo(1, "two", :three)
 @test flatten(reconstruct(foo2, flatten(foo2, String, Real), String, Real), String, Real) == flatten(foo2, String, Real)
+
+# Test `modify`
+@test modify(x -> 10x, foo) == Foo(10.0, 20.0, 30.0)
+@test modify(x -> x^2, nest, Int) == Nest(Foo(1,4,9), 4.0, 5.0f0)
+@test modify(x -> "5", nest, Float32) == Nest(Foo(1,2,3), 4.0, "5")
 
 # Test updating mutable structs
 mufoo = MuFoo(1.0, 2.0, 3.0)
@@ -87,7 +92,7 @@ munesttuple = MuNest((MuFoo(1.0, 2.0, 3.0), MuNest(MuFoo(1,2,3), 4.0, 5.0)), 9, 
     c::C | :foo | false
 end
 partial = Partial(1.0, 2.0, 3.0)
-nestedpartial = Partial(Partial(1.0, 2.0, 3.0), 4, 5) 
+nestedpartial = Partial(Partial(1.0, 2.0, 3.0), 4, 5)
 @test flatten(nestedpartial) === (1.0, 2.0, 4)
 
 @test flatten(reconstruct(nestedpartial, flatten(nestedpartial))) == flatten(nestedpartial)
@@ -100,8 +105,8 @@ nestedpartial = Partial(Partial(1.0, 2.0, 3.0), 4, 5)
 # Helpers
 @test fieldnameflatten(nestedpartial) == (:a, :b, :b)
 @test fieldtypeflatten((nestedpartial, partial)) == (Float64, Float64, Int, Float64, Float64)
-@test parenttypeflatten(nestedpartial) == 
-    (Partial{Float64,Float64,Float64}, Partial{Float64,Float64,Float64}, 
+@test parenttypeflatten(nestedpartial) ==
+    (Partial{Float64,Float64,Float64}, Partial{Float64,Float64,Float64},
      Partial{Partial{Float64,Float64,Float64},Int,Int})
 @test parentnameflatten(nestedpartial) == (:Partial, :Partial, :Partial)
 
@@ -175,8 +180,8 @@ nestvoid = Nest(Foo(1,2,3), nothing, nothing)
 munestvoid = MuNest(MuFoo(1,2,3), nothing, nothing)
 @test flatten(nestvoid) == (1,2,3)
 @test flatten((Nest(Foo(1,2,3), nothing, nothing), Nest(Foo(nothing, nothing, nothing), 9, 10))) == (1,2,3,9,10)
-@test flatten(reconstruct(nestvoid, flatten(nestvoid))) == flatten(nestvoid) 
-@test flatten(update!(munestvoid, flatten(munestvoid))) == flatten(munestvoid) 
+@test flatten(reconstruct(nestvoid, flatten(nestvoid))) == flatten(nestvoid)
+@test flatten(update!(munestvoid, flatten(munestvoid))) == flatten(munestvoid)
 
 
 # Test unit stripping functions

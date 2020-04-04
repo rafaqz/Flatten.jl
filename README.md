@@ -39,10 +39,13 @@ julia> obj = Foo(1, :two, Foo(Bar(3), 4.0, 5.0f0));
 
 julia> use = Union{Int, Float32}; # Return Int and Float32 fields
 
-julia> ignore = Bar;  # Dont return Bar or iterate over Bar fields
+julia> ignore = Bar;              # Dont return Bar or iterate over Bar fields
 
-julia> flatten(obj, use, ignore) # Flatten all Int and Float32 except fields of Bar
+julia> flatten(obj, use, ignore)  # `flatten` all Int and Float32 except fields of Bar
 (1, 5.0f0)
+
+julia> modify(string, obj, Int)   # `modify`: convert all Int to String
+Foo{String,Symbol,Foo{Bar{String},Float64,Float32}}("1", :two, Foo{Bar{String},Float64,Float32}(Bar{String}("3"), 4.0, 5.0f0))
 ```
 
 The default type used is `Real`. These rules also apply in `reconstruct`,

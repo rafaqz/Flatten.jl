@@ -200,15 +200,12 @@ reconstruct(x::U, data, ft::Function, use::Type{U}, ignore::Type{I}, n) where {U
         end
     end
 
-apply(func, data::Tuple{T, Vararg}) where T = (func(data[1]), apply(func, Base.tail(data))...)
-apply(func, data::Tuple{}) = ()
-
 """
     modify(func, obj, args...)
 
 Modify field in a type with a function
 """
-modify(func, obj, args...) = reconstruct(obj, apply(func, (flatten(obj, args...))), args...)
+modify(f, obj, args...) = reconstruct(obj, map(f, flatten(obj, args...)), args...)
 
 """
     update!(obj, data, [flattentrait::Function], [use::Type], [ignore::Type])
