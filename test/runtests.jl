@@ -83,7 +83,7 @@ munesttuple = MuNest((MuFoo(1.0, 2.0, 3.0), MuNest(MuFoo(1,2,3), 4.0, 5.0)), 9, 
 
 @metadata foobar :nobar
 
-@flattenable @foobar struct Partial{A,B,C}
+@foobar @flattenable struct Partial{A,B,C}
     " Field a"
     a::A | :foo | true
     " Field b"
@@ -115,7 +115,7 @@ nestedpartial = Partial(Partial(1.0, 2.0, 3.0), 4, 5)
 
 @metadata flattenable2 true
 
-@reflattenable2 struct Partial
+@flattenable2 Partial begin
     a::A | false
     b::B | false
     c::C | true
@@ -127,19 +127,19 @@ end
 
 
 # Updating metadata updates flattened fields
-@reflattenable @refoobar struct Partial
+@foobar @flattenable Partial begin
     a | :bar | false
     b | :bar | false
     c | :foo | true
 end
 
-@reflattenable mutable struct MuFoo
+@flattenable MuFoo begin
     a | false
     b | true
     c | false
 end
 
-@reflattenable mutable struct MuNest
+@flattenable MuNest begin
     nf | true
     nb | true
     nc | false
