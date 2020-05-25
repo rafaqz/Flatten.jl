@@ -12,9 +12,9 @@ end Flatten
 
 using ConstructionBase, FieldMetadata
 
-import FieldMetadata: @flattenable, @reflattenable, flattenable
+import FieldMetadata: @flattenable, flattenable
 
-export @flattenable, @reflattenable, flattenable, flatten, reconstruct, update!, modify,
+export @flattenable, flattenable, flatten, reconstruct, update!, modify,
        metaflatten, fieldnameflatten, parentnameflatten, fieldtypeflatten, parenttypeflatten
 
 struct EmptyIgnore end
