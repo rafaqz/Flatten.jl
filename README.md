@@ -11,7 +11,8 @@ Flatten.jl converts data from arbitrary nested structs to tuples, using
 facilitates building modular, composable structs while allowing access to
 solvers and optimisers that require flat lists of parameters. Importantly it's
 type-stable and _very_ fast. It is not intended for use with arrays, as we do
-not know their length at compile time.
+not know their length at compile time. But you can easily splat the output Tuple
+int a vector.
 
 Flatten is also flexible. The types to return and ignore can be specified, and
 individual fields can be ignored using field-level traits like `flattenable`
