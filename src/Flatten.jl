@@ -354,10 +354,6 @@ metaflatten(obj, func::Function, ft::Function, use, ignore) =
 metaflatten(x::I, func::Function, ft::Function, use::Type{U}, ignore::Type{I}, P, fname) where {U,I} = ()
 metaflatten(x::U, func::Function, ft::Function, use::Type{U}, ignore::Type{I}, P, fname) where {U,I} =
     (func(P, fname),)
-# Better field names for tuples. TODO what about mixed type tuples?
-# Also this could be confusing, consider removing.
-metaflatten(xs::NTuple{N,Number}, func::Function, ft::Function, use, ignore, P, fname) where {N} =
-    map(x -> func(P, fname), xs)
 @generated metaflatten(obj, func::Function, flattentrait::Function, use, ignore, P, fname) =
     metaflatten_inner(obj)
 
