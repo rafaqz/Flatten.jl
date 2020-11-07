@@ -1,7 +1,7 @@
 name = "Flatten"
 uuid = "4c728ea3-d9ee-5c9a-9642-b6f7d7dc04fa"
 authors = ["Rafael Schouten <rafaelschouten@gmail.com>"]
-version = "0.3.5"
+version = "0.4.0"
 
 [deps]
 ConstructionBase = "187b0558-2788-49d3-abe0-74a17ed4e7c9"
