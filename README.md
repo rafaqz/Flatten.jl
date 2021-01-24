@@ -95,3 +95,20 @@ parameter display tables.
 This package was started by Robin Deits (@rdeits), and its early development
 owes much to discussions and ideas from Jan Weidner (@jw3126) and Robin Deits.
 """
+
+# Flattening StaticArrays
+
+`SArray` and other objects from StaticArrays.jl can not be constructed from their fields. 
+Dealing with this in the long term will require either a dependency on ConstructionBase.jl
+in StaticArrays.jl, or a glue package that provides the required `constructorof` methods,
+which for now you can define manually:
+
+```julia
+using StaticArrays, ConstructionBase, Flatten
+
+struct SArrayConstructor{S,N,L} end
+(::SArrayConstructor{S,N,L})(data::NTuple{L,T}) where {S,T,N,L} = SArray{S,T,N,L}(data)
+
+ConstructionBase.constructorof(sa::Type{<:SArray{S,<:Any,N,L}}) where {S,N,L} = 
+    SArrayConstructor{S,N,L}()
+```    
