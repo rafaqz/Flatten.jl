@@ -7,12 +7,16 @@
 [![Coverage Status](https://coveralls.io/repos/rafaqz/Flatten.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/rafaqz/Flatten.jl?branch=master)
 
 Flatten.jl converts data from arbitrary nested structs to tuples, using
-`flatten()`, and rebuilds them using `reconstruct()`, `update!()` and `modify()`. This
-facilitates building modular, composable structs while allowing access to
-solvers and optimisers that require flat lists of parameters. Importantly it's
-type-stable and _very_ fast. It is not intended for use with arrays, as we do
-not know their length at compile time. But you can easily splat the output Tuple
-into a vector.
+`flatten()`, and rebuilds them using `reconstruct()`, `update!()`. 
+`modify()` combines `flatten` and `reconstruct` with a function application
+to each element of the intermediate tuple. 
+
+This facilitates building modular, composable structs that can be queries, modified and
+rebuilt based on the types of their fields, without knowing field locations.
+
+It also allows access to solvers and optimisers that require flat lists of parameters. 
+Importantly, it's type-stable and _very_ fast. It does not flatten the contents of Array
+or Dict (which is a container of Arrays), where the number of values are not known at compile time. 
 
 Flatten is also flexible. The types to return and ignore can be specified, and
 individual fields can be ignored using field-level traits like `flattenable`
