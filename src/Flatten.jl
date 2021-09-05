@@ -161,44 +161,79 @@ Foo{Int64,Symbol,Float64}(1, :two, 3.0)
 ```
 """
 function reconstruct end
+reconstruct(obj, data, use::Type=USE, ignore::Type=IGNORE) = _reconstruct(obj, data, flattenable, use, ignore, 1)[1]
+reconstruct(obj, data, flattentrait, use::Type=USE, ignore::Type=IGNORE) = _reconstruct(obj, data, flattentrait, use, ignore, 1)[1]
 
-reconstruct_builder(T, fname) = quote
-    if flattentrait($T, Val{$(QuoteNode(fname))})
-        x = getfield(obj, $(QuoteNode(fname)))
-        val, n = reconstruct(x, data, flattentrait, use, ignore, n)
-        val
+# Internal type used to generate contructor expressions.
+# Represents a bi-directional (doubly linked) type tree where child nodes correspond to fields of composite types.
+mutable struct TypeNode{T,TChildren}
+    type::Type{T}
+    name::Union{Int,Symbol}
+    parent::Union{Missing,TypeNode}
+    children::TChildren
+    TypeNode(type::Type{T}, name::Union{Int,Symbol}, children::Union{Missing,<:Tuple{Vararg{TypeNode}}}=missing) where {T} = new{T,typeof(children)}(type, name, missing, children)
+end
+function buildtree(::Type{T}, name) where {T}
+    if isabstracttype(T)
+        return TypeNode(T, name)
     else
-        (getfield(obj, $(QuoteNode(fname))),)
+        names = fieldnames(T)
+        types = fieldtypes(T)
+        children = map(buildtree, types, names)
+        node = TypeNode(T, name, children)
+        # set parent field on children
+        for child in children
+            child.parent = node
+        end
+        return node
     end
 end
-
-reconstruct_combiner(T, expressions) = :($(Expr(:tuple, expressions...)), n)
-
-reconstruct_inner(::Type{T}) where T =
-    nested(T, reconstruct_builder, reconstruct_combiner)
-
-# Run from first data index and extract the final return value from the nested tuple
-reconstruct(obj, data) = reconstruct(obj, data, flattenable)
-reconstruct(obj, data, args...) = reconstruct(obj, data, flattenable, args...)
-reconstruct(obj, data, ft::Function) = reconstruct(obj, data, ft, USE)
-reconstruct(obj, data, ft::Function, use) = reconstruct(obj, data, ft, use, IGNORE)
-# Need to extract the final return value from the nested tuple
-reconstruct(obj, data, ft::Function, use, ignore) =
-    reconstruct(obj, data, ft, use, ignore, firstindex(data))[1][1]
-# Return value unmodified
-reconstruct(x::I, data, ft::Function, use::Type{U}, ignore::Type{I}, n) where {U,I} = (x, ), n
-# Return value from data. Increment position counter - the returned n + 1 becomes n
-reconstruct(x::U, data, ft::Function, use::Type{U}, ignore::Type{I}, n) where {U,I} =
-    (data[n],), n + 1
-@generated reconstruct(obj, data, flattentrait::Function, use, ignore, n) =
-    quote
-        args, n = $(reconstruct_inner(obj))
-        if length(args) > 0
-            (constructorof(typeof(obj))(args...),), n
-        else
-            (obj,), n
-        end
+# Recursive accessor (getfield) expression builder
+_accessor_expr(::Missing, child::TypeNode) = :obj
+_accessor_expr(parent::TypeNode, child::TypeNode) = Expr(:call, :getfield, _accessor_expr(parent.parent, parent), QuoteNode(child.name))
+# Recursive reconstruct expression builder;
+# Case 1: Leaf node (i.e. no fields)
+_reconstruct_expr(node::TypeNode{T,Tuple{}}, use::Type{U}, ignore::Type) where {T,U} = :(($(_accessor_expr(node.parent, node)), n))
+# Case 2: Ignored type; value is taken from accessor
+_reconstruct_expr(node::TypeNode{T}, use::Type, ignore::Type{I}) where {I,T<:I} = :(($(_accessor_expr(node.parent, node)), n))
+# Case 3: Leaf node, matched type; if marked as flattenable, value is taken from `data` at index `n`;
+# Dispatch doesn't seem to work properly between Case 1 above and TypeNode{<:U} here. To ameliorate this,
+# we provide dispatches for both the leaf and non-leaf case where T<:U and move the common implementation to __reconstruct_expr.
+_reconstruct_expr(node::TypeNode{<:U}, use::Type{U}, ignore::Type{I}) where {U,I} = __reconstruct_expr(node, U, I)
+_reconstruct_expr(node::TypeNode{<:U,Tuple{}}, use::Type{U}, ignore::Type{I}) where {U,I} = __reconstruct_expr(node, U, I)
+function __reconstruct_expr(node::TypeNode{<:U}, use::Type{U}, ignore::Type) where {U}
+    if ismissing(node.parent)
+        :(data[n], n+1)
+    else
+        # if field is flattenable, then take from data, otherwise, use accessor on current object
+        :(flattentrait($(node.parent.type),Val{$(QuoteNode(node.name))}) ? (data[n],n+1) : ($(_accessor_expr(node.parent, node)), n))
     end
+end
+# Case 4: Abstract type whose fields are unknown at compile-time. Here we fall back to a runtime invocation of _reconstruct.
+_reconstruct_expr(node::TypeNode{T,Missing}, ::Type{U}, ::Type{I}) where {T,U,I} = :(_reconstruct($(_accessor_expr(node.parent, node)), data, flattentrait, U, I, n))
+# Case 5: Composite type fields (i.e. with fields) are reconstructed recursively;
+# Recursion is used only at compile time in building the constructor expression. This ensures type stability.
+function _reconstruct_expr(node::TypeNode{T}, ::Type{U}, ::Type{I}) where {T,U,I} 
+    expr = Expr(:block)
+    for child in node.children
+        flattened_expr = _reconstruct_expr(child, U, I)
+        accessor_expr = _accessor_expr(node, child)
+        child_expr = quote
+            ($(Symbol(:field_,child.name)), n) =
+                if flattentrait($T, Val{$(QuoteNode(child.name))})
+                    $flattened_expr
+                else
+                    ($accessor_expr, n)
+                end
+        end
+        push!(expr.args, child_expr)
+    end
+    names = [Symbol(:field_,child.name) for child in node.children]
+    callexpr = Expr(:call, :(ConstructionBase.constructorof($T)), names...)
+    push!(expr.args, :(($callexpr, n)))
+    return expr
+end
+@inline @generated _reconstruct(obj::T, data, flattentrait, use::Type{U}, ignore::Type{I}, n) where {T,U,I} = _reconstruct_expr(buildtree(T, :obj), U, I)
 
 """
     modify(func, obj, args...)
@@ -269,7 +304,7 @@ update_builder(T::Type{<:Tuple}, fname) = quote
 end
 
 update_combiner(T, expressions) = :($(Expr(:tuple, expressions...)); ((obj,), n))
-update_combiner(T::Type{<:Tuple}, expressions) = reconstruct_combiner(T, expressions)
+update_combiner(T::Type{<:Tuple}, expressions) = :($(Expr(:tuple, expressions...)), n)
 
 update_inner(::Type{T}) where T =
     nested(T, update_builder, update_combiner)

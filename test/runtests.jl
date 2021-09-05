@@ -59,6 +59,9 @@ nesttuple = Nest((foo, nest), 9, 10)
 foo2 = Foo(1, "two", :three)
 @test flatten(reconstruct(foo2, flatten(foo2, String, Real), String, Real), String, Real) == flatten(foo2, String, Real)
 
+tree = Flatten.buildtree(typeof(Foo(1.0,2.0,"abc")), :obj)
+reconstruct(Foo(1.0,2.0,"abc"), (10.0,5.0,"haha"))
+
 # Test `modify`
 @test modify(x -> 10x, foo) == Foo(10.0, 20.0, 30.0)
 @test modify(x -> x^2, nest, Int) == Nest(Foo(1,4,9), 4.0, 5.0f0)
@@ -78,7 +81,6 @@ munesttuple = MuNest((MuFoo(1.0, 2.0, 3.0), MuNest(MuFoo(1,2,3), 4.0, 5.0)), 9, 
 @test typeof(reconstruct(foo, round.(Int, flatten(foo))).a) == Int
 @test flatten(reconstruct(nesttuple, round.(Int, flatten(nesttuple)))) == round.(Int, flatten(nesttuple))
 
-
 # Partial fields with @flattenable
 
 @metadata foobar :nobar
@@ -94,7 +96,6 @@ end
 partial = Partial(1.0, 2.0, 3.0)
 nestedpartial = Partial(Partial(1.0, 2.0, 3.0), 4, 5)
 @test flatten(nestedpartial) === (1.0, 2.0, 4)
-
 @test flatten(reconstruct(nestedpartial, flatten(nestedpartial))) == flatten(nestedpartial)
 
 # Meta flattening
@@ -110,7 +111,6 @@ nestedpartial = Partial(Partial(1.0, 2.0, 3.0), 4, 5)
      Partial{Partial{Float64,Float64,Float64},Int,Int})
 @test parentnameflatten(nestedpartial) == (:Partial, :Partial, :Partial)
 
-
 # Partial fields with custom field traits
 
 @metadata flattenable2 true
@@ -123,8 +123,6 @@ end
 
 @test flatten(nestedpartial, flattenable2) === (5,)
 @test flatten(reconstruct(nestedpartial, flatten(nestedpartial, flattenable2), flattenable2), flattenable2) == flatten(nestedpartial, flattenable2)
-
-
 
 # Updating metadata updates flattened fields
 @foobar @flattenable Partial begin
@@ -149,7 +147,6 @@ end
 @test flatten(reconstruct(nestedpartial, flatten(nestedpartial))) == flatten(nestedpartial)
 @inferred flatten(reconstruct(nestedpartial, flatten(nestedpartial)))
 
-
 @test metaflatten(foo, flattenable) == (true, true, true)
 @test metaflatten(nest, flattenable) == (true, true, true, true, true)
 @test metaflatten(partial, foobar) == (:foo,)
@@ -172,8 +169,8 @@ mutable struct AnyPoint
 end
 anypoint = AnyPoint(1,2)
 @test flatten(anypoint) == (1,2)
+Flatten.buildtree(typeof(anypoint), :obj) |> typeof
 @test flatten(reconstruct(anypoint, (1,2))) == (1,2)
-
 
 # With void
 nestvoid = Nest(Foo(1,2,3), nothing, nothing)
@@ -182,7 +179,6 @@ munestvoid = MuNest(MuFoo(1,2,3), nothing, nothing)
 @test flatten((Nest(Foo(1,2,3), nothing, nothing), Nest(Foo(nothing, nothing, nothing), 9, 10))) == (1,2,3,9,10)
 @test flatten(reconstruct(nestvoid, flatten(nestvoid))) == flatten(nestvoid)
 @test flatten(update!(munestvoid, flatten(munestvoid))) == flatten(munestvoid)
-
 
 # Test unit stripping functions
 
@@ -195,9 +191,10 @@ unesttuple = Nest((ufoo, unest), 9, 10u"mol*L^-1")
 
 @test flatten(reconstruct(ufoo, flatten(ufoo, Real) , Real), Real) == flatten(ufoo, Real)
 
+Flatten._reconstruct(ufoo, flatten(ufoo), Flatten.flattenable, Number, Flatten.IGNORE, 1)
+
 @test flatten(reconstruct(ufoo, flatten(ufoo), Number), Number) === flatten(ufoo)
 @test flatten(reconstruct(ufoo, (1u"m",2u"g",3.0), Number), Number) === (1u"m",2u"g",3.0)
-
 
 ##############################################################################
 # Benchmarks
@@ -220,4 +217,7 @@ b = @benchmark reconstruct($foo, (1.0, 2.0, 3.0))
 v = [1.0, 2.0, 3.0]
 @test reconstruct(foo, v) == foo
 b = @benchmark reconstruct($foo, $v)
+@test b.allocs == 0
+
+b = @benchmark reconstruct($nest, flatten($nest))
 @test b.allocs == 0
