@@ -173,13 +173,13 @@ mutable struct TypeNode{T,TChildren}
     children::TChildren
     TypeNode(type::Type{T}, name::Union{Int,Symbol}, children::Union{Missing,<:Tuple{Vararg{TypeNode}}}=missing) where {T} = new{T,typeof(children)}(type, name, missing, children)
 end
-function buildtree(::Type{T}, name) where {T}
+function _buildtree(::Type{T}, name) where {T}
     if isabstracttype(T)
         return TypeNode(T, name)
     else
         names = fieldnames(T)
         types = fieldtypes(T)
-        children = map(buildtree, types, names)
+        children = map(_buildtree, types, names)
         node = TypeNode(T, name, children)
         # set parent field on children
         for child in children
@@ -195,8 +195,8 @@ _accessor_expr(parent::TypeNode, child::TypeNode) = Expr(:call, :getfield, _acce
 # Case 1: Leaf node (i.e. no fields)
 _reconstruct_expr(node::TypeNode{T,Tuple{}}, use::Type{U}, ignore::Type) where {T,U} = :(($(_accessor_expr(node.parent, node)), n))
 # Case 2: Ignored type; value is taken from accessor
-_reconstruct_expr(node::TypeNode{T}, use::Type, ignore::Type{I}) where {I,T<:I} = :(($(_accessor_expr(node.parent, node)), n))
-# Case 3: Leaf node, matched type; if marked as flattenable, value is taken from `data` at index `n`;
+_reconstruct_expr(node::TypeNode{<:I}, use::Type, ignore::Type{I}) where {I} = :(($(_accessor_expr(node.parent, node)), n))
+# Case 3: Matched type; if marked as flattenable, value is taken from `data` at index `n`;
 # Dispatch doesn't seem to work properly between Case 1 above and TypeNode{<:U} here. To ameliorate this,
 # we provide dispatches for both the leaf and non-leaf case where T<:U and move the common implementation to __reconstruct_expr.
 _reconstruct_expr(node::TypeNode{<:U}, use::Type{U}, ignore::Type{I}) where {U,I} = __reconstruct_expr(node, U, I)
@@ -215,6 +215,7 @@ _reconstruct_expr(node::TypeNode{T,Missing}, ::Type{U}, ::Type{I}) where {T,U,I}
 # Recursion is used only at compile time in building the constructor expression. This ensures type stability.
 function _reconstruct_expr(node::TypeNode{T}, ::Type{U}, ::Type{I}) where {T,U,I} 
     expr = Expr(:block)
+    # Generate constructor expression for each child/field
     for child in node.children
         flattened_expr = _reconstruct_expr(child, U, I)
         accessor_expr = _accessor_expr(node, child)
@@ -228,12 +229,14 @@ function _reconstruct_expr(node::TypeNode{T}, ::Type{U}, ::Type{I}) where {T,U,I
         end
         push!(expr.args, child_expr)
     end
+    # Combine into constructor call
     names = [Symbol(:field_,child.name) for child in node.children]
     callexpr = Expr(:call, :(ConstructionBase.constructorof($T)), names...)
+    # Return result along with current `data` index, `n`
     push!(expr.args, :(($callexpr, n)))
     return expr
 end
-@inline @generated _reconstruct(obj::T, data, flattentrait, use::Type{U}, ignore::Type{I}, n) where {T,U,I} = _reconstruct_expr(buildtree(T, :obj), U, I)
+@inline @generated _reconstruct(obj::T, data, flattentrait, use::Type{U}, ignore::Type{I}, n) where {T,U,I} = _reconstruct_expr(_buildtree(T, :obj), U, I)
 
 """
     modify(func, obj, args...)
