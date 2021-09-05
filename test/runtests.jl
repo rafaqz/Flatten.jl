@@ -59,9 +59,6 @@ nesttuple = Nest((foo, nest), 9, 10)
 foo2 = Foo(1, "two", :three)
 @test flatten(reconstruct(foo2, flatten(foo2, String, Real), String, Real), String, Real) == flatten(foo2, String, Real)
 
-tree = Flatten.buildtree(typeof(Foo(1.0,2.0,"abc")), :obj)
-reconstruct(Foo(1.0,2.0,"abc"), (10.0,5.0,"haha"))
-
 # Test `modify`
 @test modify(x -> 10x, foo) == Foo(10.0, 20.0, 30.0)
 @test modify(x -> x^2, nest, Int) == Nest(Foo(1,4,9), 4.0, 5.0f0)
@@ -169,7 +166,6 @@ mutable struct AnyPoint
 end
 anypoint = AnyPoint(1,2)
 @test flatten(anypoint) == (1,2)
-Flatten.buildtree(typeof(anypoint), :obj) |> typeof
 @test flatten(reconstruct(anypoint, (1,2))) == (1,2)
 
 # With void
