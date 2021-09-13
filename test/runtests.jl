@@ -192,6 +192,11 @@ Flatten._reconstruct(ufoo, flatten(ufoo), Flatten.flattenable, Number, Flatten.I
 @test flatten(reconstruct(ufoo, flatten(ufoo), Number), Number) === flatten(ufoo)
 @test flatten(reconstruct(ufoo, (1u"m",2u"g",3.0), Number), Number) === (1u"m",2u"g",3.0)
 
+# Test fix for issue 30
+# https://github.com/rafaqz/Flatten.jl/issues/30
+nestedtup = (1 => (1,2,3), 2 => (4,5,6))
+@test flatten(reconstruct(nestedtup, flatten(nestedtup))) === flatten(nestedtup)
+
 ##############################################################################
 # Benchmarks
 

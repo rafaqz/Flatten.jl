@@ -215,12 +215,14 @@ _reconstruct_expr(node::TypeNode{T,Missing}, ::Type{U}, ::Type{I}) where {T,U,I}
 # Recursion is used only at compile time in building the constructor expression. This ensures type stability.
 function _reconstruct_expr(node::TypeNode{T}, ::Type{U}, ::Type{I}) where {T,U,I} 
     expr = Expr(:block)
+    argnames = []
     # Generate constructor expression for each child/field
     for child in node.children
         flattened_expr = _reconstruct_expr(child, U, I)
         accessor_expr = _accessor_expr(node, child)
+        name = gensym("arg")
         child_expr = quote
-            ($(Symbol(:field_,child.name)), n) =
+            ($name, n) =
                 if flattentrait($T, Val{$(QuoteNode(child.name))})
                     $flattened_expr
                 else
@@ -228,10 +230,10 @@ function _reconstruct_expr(node::TypeNode{T}, ::Type{U}, ::Type{I}) where {T,U,I
                 end
         end
         push!(expr.args, child_expr)
+        push!(argnames, name)
     end
     # Combine into constructor call
-    names = [Symbol(:field_,child.name) for child in node.children]
-    callexpr = Expr(:call, :(ConstructionBase.constructorof($T)), names...)
+    callexpr = Expr(:call, :(ConstructionBase.constructorof($T)), argnames...)
     # Return result along with current `data` index, `n`
     push!(expr.args, :(($callexpr, n)))
     return expr
