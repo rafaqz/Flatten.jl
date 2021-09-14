@@ -174,7 +174,7 @@ mutable struct TypeNode{T,TChildren}
     TypeNode(type::Type{T}, name::Union{Int,Symbol}, children::Union{Missing,<:Tuple{Vararg{TypeNode}}}=missing) where {T} = new{T,typeof(children)}(type, name, missing, children)
 end
 function _buildtree(::Type{T}, name) where {T}
-    if isabstracttype(T)
+    if isabstracttype(T) || isa(T, Union)
         return TypeNode(T, name)
     else
         names = fieldnames(T)

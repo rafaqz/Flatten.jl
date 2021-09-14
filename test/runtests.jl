@@ -197,6 +197,17 @@ Flatten._reconstruct(ufoo, flatten(ufoo), Flatten.flattenable, Number, Flatten.I
 nestedtup = (1 => (1,2,3), 2 => (4,5,6))
 @test flatten(reconstruct(nestedtup, flatten(nestedtup))) === flatten(nestedtup)
 
+# Test fix for issue 32
+# https://github.com/rafaqz/Flatten.jl/issues/32
+struct UnionFoo
+    a::Union{Missing,NTuple{2,Float64}}
+    b::Union{Nothing,NTuple{2,Int}}
+end
+ufoo1 = UnionFoo((1.0,2.0),(3,4))
+@test flatten(reconstruct(ufoo1, flatten(ufoo1))) === flatten(ufoo1)
+ufoo2 = UnionFoo(missing,nothing)
+@test flatten(reconstruct(ufoo2, flatten(ufoo2))) === flatten(ufoo2)
+
 ##############################################################################
 # Benchmarks
 
