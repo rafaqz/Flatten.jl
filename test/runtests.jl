@@ -202,11 +202,14 @@ nestedtup = (1 => (1,2,3), 2 => (4,5,6))
 struct UnionFoo
     a::Union{Missing,NTuple{2,Float64}}
     b::Union{Nothing,NTuple{2,Int}}
+    c::Union{Nothing,Vector} # union all type
 end
-ufoo1 = UnionFoo((1.0,2.0),(3,4))
+ufoo1 = UnionFoo((1.0,2.0),(3,4),nothing)
 @test flatten(reconstruct(ufoo1, flatten(ufoo1))) === flatten(ufoo1)
-ufoo2 = UnionFoo(missing,nothing)
+ufoo2 = UnionFoo(missing,nothing,nothing)
 @test flatten(reconstruct(ufoo2, flatten(ufoo2))) === flatten(ufoo2)
+ufoo3 = UnionFoo(missing,nothing,[1,2,3])
+@test flatten(reconstruct(ufoo3, flatten(ufoo3))) === flatten(ufoo3)
 
 ##############################################################################
 # Benchmarks
