@@ -24,10 +24,12 @@ const USE = Real
 const IGNORE = EmptyIgnore
 const FLATTENTRAIT = flattenable
 
+_fieldnames(::Type{<:Type}) = ()
+_fieldnames(::Type{T}) where {T} = fieldnames(T)
 
 # Generalised nested struct walker
 nested(T::Type, P::Type, expr_builder, expr_combiner) =
-    expr_combiner(T, [Expr(:..., expr_builder(T, fn)) for fn in fieldnames(T)])
+    expr_combiner(T, [Expr(:..., expr_builder(T, fn)) for fn in _fieldnames(T)])
 # Unknown parent type is replaced with Nothing
 nested(T::Type, expr_builder, expr_combiner) =
     nested(T, Nothing, expr_builder, expr_combiner)
@@ -176,6 +178,8 @@ end
 function _buildtree(::Type{T}, name) where {T}
     if isabstracttype(T) || isa(T, Union) || isa(T, UnionAll)
         return TypeNode(T, name)
+    elseif T <: Type # treat meta types as leaf nodes
+        return TypeNode(T, name, ())
     else
         names = fieldnames(T)
         types = fieldtypes(T)
