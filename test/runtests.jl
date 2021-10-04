@@ -211,6 +211,11 @@ ufoo2 = UnionFoo(missing,nothing,nothing)
 ufoo3 = UnionFoo(missing,nothing,[1,2,3])
 @test flatten(reconstruct(ufoo3, flatten(ufoo3))) === flatten(ufoo3)
 
+# Test fix for issue 35
+# https://github.com/rafaqz/Flatten.jl/issues/35
+foo = Foo(UnionAll,Union{Int,Float64},Symbol)
+@test flatten(reconstruct(foo, flatten(foo))) === flatten(foo)
+
 ##############################################################################
 # Benchmarks
 
